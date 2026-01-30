@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
+import { UserModel } from '../models/user.model';
 
 export class AuthController {
   static async login(req: Request, res: Response) {
@@ -37,5 +38,14 @@ export class AuthController {
   
   static async getMe(req: Request, res: Response) {
       res.json({ user: req.user });
+  }
+
+  static async status(req: Request, res: Response) {
+      const userCount = UserModel.count();
+      res.json({
+        status: 'ok',
+        needsSetup: userCount === 0,
+        setupTokenRequired: Boolean((process.env.NEXUS_SETUP_TOKEN || '').trim())
+      });
   }
 }

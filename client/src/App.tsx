@@ -6,12 +6,6 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
-interface User {
-  userId: number;
-  username: string;
-  isAdmin: boolean;
-}
-
 interface Worker {
   id: string;
   socketId: string;
@@ -77,7 +71,6 @@ function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const [showAddWorkerModal, setShowAddWorkerModal] = useState<boolean>(false);
   const [newWorkerName, setNewWorkerName] = useState('');
   const [createdWorker, setCreatedWorker] = useState<Worker | null>(null);
@@ -102,6 +95,9 @@ function App() {
   const [tagModalInput, setTagModalInput] = useState<string>('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showDropOverlay, setShowDropOverlay] = useState<boolean>(false);
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+  const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
+  const [installToken, setInstallToken] = useState<string>('TU_WORKER_TOKEN');
   
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -124,6 +120,7 @@ function App() {
   const hadSessionsRef = useRef<boolean>(false);
 
   const normalizeWorkerKey = (name: string) => name.trim().toLowerCase();
+  const resolvedWorkerToken = createdWorker?.api_key || 'TU_WORKER_TOKEN';
 
   const parseStored = <T,>(value: string | null, fallback: T): T => {
     if (!value) return fallback;
@@ -164,29 +161,28 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    if (createdWorker?.api_key) {
+      setInstallToken(createdWorker.api_key);
+    }
+  }, [createdWorker]);
+
+  const copyCommand = async (id: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedCommand(id);
+      setTimeout(() => setCopiedCommand((prev) => (prev === id ? null : prev)), 1800);
+    } catch (err) {
+      console.warn('No se pudo copiar el comando:', err);
+    }
+  };
+
   const resolveWorkerForSession = (session: { workerId: string; workerKey: string }, list: Worker[]) => {
     const byId = list.find((worker) => worker.id === session.workerId);
     if (byId) return byId;
     const sameKey = list.filter((worker) => normalizeWorkerKey(worker.name) === session.workerKey);
     if (sameKey.length === 0) return null;
     return sameKey.find((worker) => worker.status !== 'offline') || sameKey[0];
-  };
-
-  const rebindSessionsToWorkers = (list: Worker[]) => {
-    setSessions((prev) =>
-      prev.map((session) => {
-        const resolved = resolveWorkerForSession(session, list);
-        if (!resolved) return session;
-        const nextKey = normalizeWorkerKey(resolved.name);
-        if (resolved.id === session.workerId && nextKey === session.workerKey) return session;
-        return {
-          ...session,
-          workerId: resolved.id,
-          workerName: resolved.name,
-          workerKey: nextKey,
-        };
-      }),
-    );
   };
 
   const addCommandToHistory = (workerKey: string, command: string) => {
@@ -326,10 +322,7 @@ function App() {
         if (!res.ok) throw new Error('Invalid token');
         return res.json();
     })
-    .then(data => {
-        setUser(data.user);
-        initSocket(storedToken);
-    })
+    .then(() => initSocket(storedToken))
     .catch(() => {
         setToken(null);
         localStorage.removeItem(AUTH_KEY);
@@ -506,7 +499,7 @@ function App() {
       setConnectionState('disconnected');
     });
 
-    newSocket.on('reconnect', (attempt) => {
+    newSocket.on('reconnect', (_attempt) => {
       setConnectionState('connected');
       const active = sessionsRef.current.find((s) => s.id === activeSessionRef.current);
       if (active) {
@@ -800,6 +793,18 @@ function App() {
     setSessions((prev) =>
       prev.map((s) => (s.id === sessionId ? { ...s, displayName: newName.trim() } : s))
     );
+  };
+
+  const switchSession = (sessionId: string) => {
+    setActiveSessionId(sessionId);
+  };
+
+  const promptRenameSession = (sessionId: string) => {
+    const current = sessionsRef.current.find((s) => s.id === sessionId);
+    const nextName = window.prompt('Nuevo nombre de sesion', current?.displayName || '');
+    if (nextName && nextName.trim()) {
+      renameSession(sessionId, nextName);
+    }
   };
 
   const focusOrCreateSession = (workerId: string) => {
@@ -1255,7 +1260,6 @@ function App() {
       localStorage.setItem(AUTH_KEY, data.token);
       localStorage.setItem('ut-user', JSON.stringify(data.user));
       setToken(data.token);
-      setUser(data.user);
       setNeedsSetup(false);
       
       initSocket(data.token);
@@ -1337,6 +1341,69 @@ function App() {
     );
   };
 
+  const renderInstallHelp = () => {
+    const debCommand = `curl -fsSL ${NEXUS_URL}/install.sh | NEXUS_URL=${NEXUS_URL} bash -s -- ${resolvedWorkerToken}`;
+    const rpmCommand = `curl -fsSL ${NEXUS_URL}/api/downloads/latest/worker-linux.rpm -o worker.rpm && sudo rpm -Uvh worker.rpm`;
+
+    const copyButton = (id: string, label: string, cmd: string) => (
+      <button
+        className="mini-btn"
+        onClick={() => copyCommand(id, cmd)}
+        style={{ minWidth: 90 }}
+      >
+        {copiedCommand === id ? 'Copiado' : label}
+      </button>
+    );
+
+    const tokenValue = installToken || resolvedWorkerToken;
+
+    if (!showInstallModal) return null;
+
+    return (
+      <div className="modal-overlay" onClick={() => setShowInstallModal(false)}>
+        <div className="modal install-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>Instalar un nuevo worker</h3>
+            <button className="close-btn" onClick={() => setShowInstallModal(false)}>✕</button>
+          </div>
+          <div className="modal-body install-grid">
+            <div className="helper-card">
+              <p style={{ marginTop: 0 }}>
+                Usa el token/API key del worker y ejecuta el comando en el servidor objetivo.
+              </p>
+              <label className="helper-label" style={{ display: 'block' }}>
+                Token/API key
+                <input
+                  className="install-input"
+                  value={tokenValue}
+                  onChange={(e) => setInstallToken(e.target.value)}
+                  placeholder="API_KEY del worker"
+                />
+              </label>
+              <div className="helper-note">
+                Token usado: <strong>{tokenValue}</strong>. Cambia por el API key real si ya lo tienes.
+              </div>
+            </div>
+            <div className="helper-card">
+              <div className="helper-label">Debian/Ubuntu</div>
+              <code className="helper-code">{debCommand.replace(resolvedWorkerToken, tokenValue)}</code>
+              <div className="helper-row">
+                <span />
+                {copyButton('deb', 'Copiar', debCommand.replace(resolvedWorkerToken, tokenValue))}
+              </div>
+              <div className="helper-label" style={{ marginTop: 10 }}>RHEL/CentOS/Fedora</div>
+              <code className="helper-code">{rpmCommand.replace(resolvedWorkerToken, tokenValue)}</code>
+              <div className="helper-row">
+                <span />
+                {copyButton('rpm', 'Copiar', rpmCommand.replace(resolvedWorkerToken, tokenValue))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSidebar = () => (
     <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
@@ -1378,7 +1445,7 @@ function App() {
                     className="rename-session-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      renameSession(session.id);
+                      promptRenameSession(session.id);
                     }}
                     title="Renombrar sesion"
                   >
@@ -1626,6 +1693,9 @@ function App() {
         <span>{workers.length} worker{workers.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="topbar-right">
+        <button className="ghost-btn" onClick={() => setShowInstallModal(true)} title="Instalar worker">
+          Instalar worker
+        </button>
         {activeSessionId && (
           <button className="resume-btn" onClick={resumeActiveSession} title="Reanudar sesion activa">
             Reanudar
@@ -1745,6 +1815,7 @@ function App() {
     <div className="layout">
       {renderAddWorkerModal()}
       {renderControls()}
+      {renderInstallHelp()}
       {showSettings && token && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

@@ -39,4 +39,9 @@ export class UserModel {
   static findById(id: number): User | undefined {
     return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
   }
+
+  static count(): number {
+    const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    return row?.count || 0;
+  }
 }

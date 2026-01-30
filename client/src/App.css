@@ -544,6 +544,67 @@
   gap: 6px;
 }
 
+.helper-card {
+  background: linear-gradient(145deg, #0f111a, #0c0f15);
+  border: 1px solid #1f2a3c;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.helper-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.helper-code {
+  display: block;
+  background: #0a0d14;
+  border: 1px solid #1f2a3c;
+  padding: 8px;
+  border-radius: 8px;
+  color: #c4d4f2;
+  font-size: 0.85rem;
+  max-width: 460px;
+  word-break: break-all;
+}
+
+.helper-label {
+  font-size: 0.85rem;
+  color: #9fb3c8;
+  margin-bottom: 4px;
+}
+
+.helper-note {
+  font-size: 0.85rem;
+  color: #9fb3c8;
+}
+
+.install-input {
+  margin-top: 4px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #1f2a3c;
+  background: #0c1018;
+  color: #e7e7e7;
+  margin-bottom: 10px;
+}
+
+.install-modal .modal-body {
+  gap: 12px;
+}
+
+.install-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
 .command-item {
   display: grid;
   grid-template-columns: 22px 1fr 22px;

@@ -12,8 +12,8 @@ compose() {
   fi
 }
 
-echo "[1/3] Construyendo paquetes .deb..."
-(cd "$ROOT_DIR" && npm run package:deb)
+echo "[1/3] Construyendo paquetes (.deb/.rpm si aplica)..."
+(cd "$ROOT_DIR" && npm run package:all || npm run package:deb)
 
 echo "[2/3] Construyendo imagenes Docker..."
 compose build

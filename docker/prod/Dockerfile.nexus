@@ -8,8 +8,17 @@ RUN apt-get update \
 RUN printf '#!/bin/sh\nexit 0\n' > /usr/bin/systemctl \
   && chmod +x /usr/bin/systemctl
 
-COPY dist/packages/ultimate-terminal-nexus_*.deb /tmp/
-RUN dpkg -i /tmp/ultimate-terminal-nexus_*.deb
+COPY dist/packages /tmp/packages
+RUN dpkg -i /tmp/packages/ultimate-terminal-nexus_*.deb
+
+# Expose worker packages for remote installs
+RUN mkdir -p /usr/share/ultimate-terminal/downloads \
+  && if ls /tmp/packages/ultimate-terminal-worker_*.deb >/dev/null 2>&1; then \
+       cp /tmp/packages/ultimate-terminal-worker_*.deb /usr/share/ultimate-terminal/downloads/worker-linux.deb; \
+     fi \
+  && if ls /tmp/packages/ultimate-terminal-worker-*.rpm >/dev/null 2>&1; then \
+       cp /tmp/packages/ultimate-terminal-worker-*.rpm /usr/share/ultimate-terminal/downloads/worker-linux.rpm; \
+     fi
 
 ENV PORT=3002
 WORKDIR /var/lib/ultimate-terminal
