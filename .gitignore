@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+client/dist-electron/
+client/release/
+client/android/app/build/
+client/android/.gradle/
+client/android/app/.cxx/
+client/android/app/.externalNativeBuild/
+client/android/local.properties
+nexus/public/
+nexus/bin/
+worker/bin/
+worker/packages/
+dist/packages/
+deploy_stage/
+
+# Packages/installers
+*.deb
+*.rpm
+*.AppImage
+*.apk
+*.aab
+*.exe
+*.dmg
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+.qodo/
+.docker-data/
+payload.tar.gz
+
+# Env files
+.env*
+!.env.example
+
+# Misc
+.DS_Store

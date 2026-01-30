@@ -1,0 +1,28 @@
+{
+  "name": "ultimate-terminal",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "nexus",
+    "worker",
+    "client"
+  ],
+  "scripts": {
+    "start:nexus": "npm run start --workspace=nexus",
+    "start:worker": "npm run start --workspace=worker",
+    "start:client": "npm run dev --workspace=client",
+    "package:deb": "bash packaging/build.sh --deb",
+    "package:deb:worker": "bash packaging/build.sh --deb worker",
+    "package:deb:nexus": "bash packaging/build.sh --deb nexus",
+    "package:rpm": "bash packaging/build.sh --rpm",
+    "package:all": "bash packaging/build.sh --all",
+    "docker:deploy": "bash scripts/docker-deploy.sh",
+    "docker:test": "bash scripts/docker-test.sh",
+    "test:e2e": "vitest run tests/e2e.test.ts tests/multi-client.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.6",
+    "ts-node": "^10.9.2",
+    "vitest": "^4.0.17"
+  }
+}

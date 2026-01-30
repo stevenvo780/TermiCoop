@@ -1,0 +1,27 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "nexus/bin": true,
+    "worker/bin": true,
+    "worker/packages": true,
+    "**/*.deb": true,
+    "**/*.rpm": true,
+    "**/*.AppImage": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "nexus/bin": true,
+    "worker/bin": true,
+    "worker/packages": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "nexus/bin/**": true,
+    "worker/bin/**": true,
+    "worker/packages/**": true
+  },
+  "typescript.tsdk": "node_modules/typescript/lib"
+}
