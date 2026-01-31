@@ -280,21 +280,32 @@ function App() {
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     setSocket(newSocket);
     setConnectionState('connecting');
 
+    const resubscribeSessions = () => {
+      sessionsRef.current.forEach((session) => {
+        newSocket.emit('subscribe', { workerId: session.workerId });
+        newSocket.emit('join-session', {
+          sessionId: session.id,
+          cols: session.terminal?.cols || 80,
+          rows: session.terminal?.rows || 24,
+        });
+      });
+    };
+
     newSocket.on('connect', () => {
       setConnectionState('connected');
       setAuthError(null);
+      resubscribeSessions();
     });
 
-    newSocket.on('connect_error', (err) => {
-      setConnectionState('reconnecting');
-      if (err.message.includes('Authentication error')) {
-         console.error('Socket Auth Error:', err.message);
-      }
+    newSocket.on('reconnect', () => {
+      setConnectionState('connected');
+      resubscribeSessions();
     });
 
     newSocket.on('disconnect', () => {
@@ -307,8 +318,93 @@ function App() {
       workersRef.current = list;
     });
 
-    // session_output listener removed as it is replaced by 'output' listener in useEffect
+    newSocket.on('session-list', (serverSessions: Array<{
+      id: string;
+      workerName: string;
+      workerKey: string;
+      displayName: string;
+      createdAt: number;
+      lastActiveAt: number;
+    }>) => {
+      serverSessions.forEach((ss) => {
+        const existsLocally = sessionsRef.current.some((s) => s.id === ss.id);
+        if (!existsLocally) {
+          const worker = workersRef.current.find((w) => normalizeWorkerKey(w.name) === ss.workerKey);
+          if (worker) {
+            newSocket.emit('get-session-output', { sessionId: ss.id }, (output: string) => {
+              createNewSession(worker, {
+                sessionId: ss.id,
+                displayName: ss.displayName,
+                createdAt: ss.createdAt,
+                lastActiveAt: ss.lastActiveAt,
+                initialOutput: output || '',
+                focus: false,
+              });
+            });
+          }
+        }
+      });
+      const serverSessionIds = new Set(serverSessions.map((s) => s.id));
+      const sessionsToRemove = sessionsRef.current.filter((s) => !serverSessionIds.has(s.id));
+      sessionsToRemove.forEach((session) => {
+        disposeSession(session);
+        delete sessionOutputRef.current[session.id];
+      });
+      if (sessionsToRemove.length > 0) {
+        setSessions((prev) => prev.filter((s) => serverSessionIds.has(s.id)));
+      }
+    });
 
+    newSocket.on('session-closed', (data: { sessionId: string }) => {
+      const session = sessionsRef.current.find((s) => s.id === data.sessionId);
+      if (session) {
+        disposeSession(session);
+        delete sessionOutputRef.current[session.id];
+        setSessions((prev) => prev.filter((s) => s.id !== data.sessionId));
+        if (activeSessionRef.current === data.sessionId) {
+          const remaining = sessionsRef.current.filter((s) => s.id !== data.sessionId);
+          setActiveSessionId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+        }
+      }
+    });
+
+    newSocket.on('output', (data: { workerId: string; sessionId?: string; data: string }) => {
+      console.log(`[CLIENT] Output received: Worker=${data.workerId}, Session=${data.sessionId}, DataLen=${data.data.length}`);
+      const targetSessions = data.sessionId
+        ? sessionsRef.current.filter((session) => session.id === data.sessionId)
+        : sessionsRef.current.filter((session) => session.workerId === data.workerId);
+
+      console.log(`[CLIENT] Target sessions found: ${targetSessions.length}. Total sessions: ${sessionsRef.current.length}`);
+
+      targetSessions.forEach((session) => {
+        session.terminal.write(data.data);
+        const current = sessionOutputRef.current[session.id] || '';
+        const next = `${current}${data.data}`.slice(-MAX_OUTPUT_CHARS);
+        sessionOutputRef.current[session.id] = next;
+      });
+      if (targetSessions.length > 0) {
+        schedulePersistSessions();
+      }
+    });
+
+    newSocket.on('connect_error', (err) => {
+      const message = err?.message || 'Connection error';
+      const normalized = message.toLowerCase();
+      const isAuthIssue = [
+        'invalid token',
+        'missing token',
+        'jwt expired',
+        'invalid signature',
+        'unauthorized',
+        'authentication error',
+      ].some((needle) => normalized.includes(needle));
+      if (isAuthIssue) {
+        clearAuth('Sesion expirada o invalida. Inicia sesion de nuevo.');
+        return;
+      }
+      setAuthError(message);
+      setConnectionState('reconnecting');
+    });
   };
 
   useEffect(() => {
@@ -388,6 +484,11 @@ function App() {
             rows: activeSession.terminal.rows || 24,
           });
         }
+        // Ensure keyboard focus goes to the active terminal
+        requestAnimationFrame(() => {
+          activeSession.terminal.focus();
+          fitAndResizeSession(activeSession);
+        });
       }
     } else if (isRestored) {
       storedActiveSessionRef.current = null;
@@ -498,129 +599,7 @@ function App() {
     setGridSessionIds((prev) => prev.filter((id) => sessionsRef.current.some((s) => s.id === id)));
   }, [sessions]);
 
-  useEffect(() => {
-    if (!token) return;
-    setConnectionState('connecting');
-    const newSocket = io(NEXUS_URL, {
-      auth: { token, type: 'client' },
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-    });
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      setConnectionState('connected');
-      newSocket.emit('register', { type: 'client' });
-    });
-
-    newSocket.on('disconnect', () => {
-      setConnectionState('disconnected');
-    });
-
-    newSocket.on('reconnect', (_attempt) => {
-      setConnectionState('connected');
-      const active = sessionsRef.current.find((s) => s.id === activeSessionRef.current);
-      if (active) {
-        newSocket.emit('join-session', {
-          sessionId: activeSessionRef.current,
-          cols: active.terminal.cols || 80,
-          rows: active.terminal.rows || 24,
-        });
-      }
-    });
-
-    newSocket.on('session-list', (serverSessions: Array<{
-      id: string;
-      workerName: string;
-      workerKey: string;
-      displayName: string;
-      createdAt: number;
-      lastActiveAt: number;
-    }>) => {
-      serverSessions.forEach(ss => {
-        const existsLocally = sessionsRef.current.some(s => s.id === ss.id);
-        if (!existsLocally) {
-          const worker = workersRef.current.find(w => normalizeWorkerKey(w.name) === ss.workerKey);
-          if (worker) {
-            newSocket.emit('get-session-output', { sessionId: ss.id }, (output: string) => {
-              createNewSession(worker, {
-                sessionId: ss.id,
-                displayName: ss.displayName,
-                createdAt: ss.createdAt,
-                lastActiveAt: ss.lastActiveAt,
-                initialOutput: output || '',
-                focus: false,
-              });
-            });
-          }
-        }
-      });
-      const serverSessionIds = new Set(serverSessions.map(s => s.id));
-      const sessionsToRemove = sessionsRef.current.filter(s => !serverSessionIds.has(s.id));
-      sessionsToRemove.forEach(session => {
-        disposeSession(session);
-        delete sessionOutputRef.current[session.id];
-      });
-      if (sessionsToRemove.length > 0) {
-        setSessions(prev => prev.filter(s => serverSessionIds.has(s.id)));
-      }
-    });
-
-    newSocket.on('session-closed', (data: { sessionId: string }) => {
-      const session = sessionsRef.current.find(s => s.id === data.sessionId);
-      if (session) {
-        disposeSession(session);
-        delete sessionOutputRef.current[session.id];
-        setSessions(prev => prev.filter(s => s.id !== data.sessionId));
-        if (activeSessionRef.current === data.sessionId) {
-          const remaining = sessionsRef.current.filter(s => s.id !== data.sessionId);
-          setActiveSessionId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
-        }
-      }
-    });
-
-    newSocket.on('output', (data: { workerId: string; sessionId?: string; data: string }) => {
-      console.log(`[CLIENT] Output received: Worker=${data.workerId}, Session=${data.sessionId}, DataLen=${data.data.length}`);
-      const targetSessions = data.sessionId
-        ? sessionsRef.current.filter((session) => session.id === data.sessionId)
-        : sessionsRef.current.filter((session) => session.workerId === data.workerId);
-      
-      console.log(`[CLIENT] Target sessions found: ${targetSessions.length}. Total sessions: ${sessionsRef.current.length}`);
-
-      targetSessions.forEach((session) => {
-        session.terminal.write(data.data);
-        const current = sessionOutputRef.current[session.id] || '';
-        const next = `${current}${data.data}`.slice(-MAX_OUTPUT_CHARS);
-        sessionOutputRef.current[session.id] = next;
-      });
-      if (targetSessions.length > 0) {
-        schedulePersistSessions();
-      }
-    });
-
-    newSocket.on('connect_error', (err) => {
-      const message = err?.message || 'Connection error';
-      const normalized = message.toLowerCase();
-      const isAuthIssue = [
-        'invalid token',
-        'missing token',
-        'jwt expired',
-        'invalid signature',
-        'unauthorized',
-      ].some((needle) => normalized.includes(needle));
-      if (isAuthIssue) {
-        clearAuth('Sesion expirada o invalida. Inicia sesion de nuevo.');
-        return;
-      }
-      setAuthError(message);
-      setConnectionState('reconnecting');
-    });
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [token]);
+  // Socket is fully initialized via initSocket when a valid token is present.
 
   const disposeSession = (session: TerminalSession) => {
     window.removeEventListener('resize', session.resizeHandler);
@@ -725,8 +704,14 @@ function App() {
     term.loadAddon(clipboardAddon);
     term.open(container);
     fitAddon.fit();
+    // Keep terminal focus when user clicks on its area
+    container.addEventListener('mousedown', () => {
+      setActiveSessionId(sessionId);
+      setTimeout(() => term.focus(), 0);
+    });
     term.onData((data) => {
       trackInputForHistory(sessionId, workerKey, data);
+      console.log(`[CLIENT] onData session=${sessionId} len=${data.length}`);
       if (socketRef.current) {
         socketRef.current.emit('execute', {
           workerId: worker.id,
@@ -879,6 +864,30 @@ function App() {
     return createNewSession(worker);
   };
 
+  const deleteWorker = async (workerId: string) => {
+    if (!token) return;
+    if (!confirm('¿Seguro que deseas eliminar este worker? Esta acción no se puede deshacer.')) return;
+    try {
+      const res = await fetch(`${NEXUS_URL}/api/workers/${workerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        setWorkers((prev) => prev.filter((w) => w.id !== workerId));
+        workersRef.current = workersRef.current.filter((w) => w.id !== workerId);
+        setTagModalWorker(null);
+      } else {
+        const err = await res.json();
+        alert('Error eliminando worker: ' + (err.error || 'Desconocido'));
+      }
+    } catch (error) {
+      console.error('Failed to delete worker:', error);
+      alert('Error de red al eliminar worker');
+    }
+  };
+
   const focusWorkerSession = (workerId: string) => {
     const worker = workers.find((w) => w.id === workerId);
     if (!worker) return;
@@ -963,22 +972,7 @@ function App() {
     setTagModalInput('');
   };
 
-  const deleteWorker = (worker: Worker) => {
-    if (worker.status !== 'offline') {
-      alert('Solo se pueden eliminar workers desconectados');
-      return;
-    }
-    if (!confirm(`¿Eliminar worker "${worker.name}" de la lista?`)) return;
-    socket?.emit('delete-worker', { workerId: worker.id });
-    setWorkers((prev) => prev.filter((w) => w.id !== worker.id));
-    const workerKey = normalizeWorkerKey(worker.name);
-    setWorkerTags((prev) => {
-      const next = { ...prev };
-      delete next[workerKey];
-      return next;
-    });
-    setTagModalWorker(null);
-  };
+
 
   const clearActiveHistory = () => {
     if (!activeWorkerKey) return;
@@ -1248,6 +1242,36 @@ function App() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    sessions.forEach((session) => {
+      const container = session.containerRef;
+      if (!container) return;
+
+      let shouldShow = false;
+      let order = 0;
+
+      if (layoutMode === 'single') {
+        shouldShow = session.id === activeSessionId;
+      } else {
+        const index = gridSessionIds.indexOf(session.id);
+        if (index !== -1) {
+          shouldShow = true;
+          order = index;
+        }
+      }
+
+      const display = shouldShow ? 'flex' : 'none';
+      if (container.style.display !== display) {
+         container.style.display = display;
+      }
+      
+      if (shouldShow) {
+        container.style.order = order.toString();
+        requestAnimationFrame(() => fitAndResizeSession(session));
+      }
+    });
+  }, [activeSessionId, layoutMode, gridSessionIds, sessions]);
 
   const handleAuth = async (endpoint: 'setup' | 'login', password: string, setupToken?: string) => {
     setBusy(true);
@@ -1583,6 +1607,16 @@ function App() {
                               ))
                             : <span className="tag-chip empty">Sin tags</span>}
                         </div>
+                        <button
+                          className="delete-worker-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteWorker(worker.id);
+                          }}
+                          title="Eliminar worker"
+                        >
+                          🗑
+                        </button>
                         <button
                           className="add-session-btn"
                           onClick={(e) => {
@@ -1922,7 +1956,7 @@ function App() {
                 {tagModalWorker.status === 'offline' && (
                   <button 
                     className="btn-danger" 
-                    onClick={() => deleteWorker(tagModalWorker)}
+                    onClick={() => deleteWorker(tagModalWorker.id)}
                   >
                     Eliminar Worker
                   </button>

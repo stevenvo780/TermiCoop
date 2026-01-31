@@ -115,6 +115,7 @@ function connect() {
       console.log('[Worker] Ignoring execute without sessionId');
       return;
     }
+    console.log(`[Worker] execute received session=${sessionId} len=${data.command.length}`);
     
     let shell = sessionShells.get(sessionId);
     if (!shell) {

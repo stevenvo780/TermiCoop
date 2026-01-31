@@ -83,6 +83,11 @@ export class WorkerModel {
     db.prepare('UPDATE workers SET status = ?, last_seen = ? WHERE id = ?')
       .run(status, Date.now(), id);
   }
+
+  static delete(id: string) {
+    db.prepare('DELETE FROM worker_shares WHERE worker_id = ?').run(id);
+    db.prepare('DELETE FROM workers WHERE id = ?').run(id);
+  }
   
   static hasAccess(userId: number, workerId: string, requiredPermission: 'view' | 'control' | 'admin' = 'view'): boolean {
      const worker = this.findById(workerId);

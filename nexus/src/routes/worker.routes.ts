@@ -9,5 +9,6 @@ router.use(authMiddleware);
 router.get('/', WorkerController.list);
 router.post('/', WorkerController.create);
 router.post('/share', WorkerController.share);
+router.delete('/:id', WorkerController.delete);
 
 export default router;

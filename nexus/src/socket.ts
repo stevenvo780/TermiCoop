@@ -101,7 +101,7 @@ export const initSocket = (httpServer: any) => {
     // Client Commands
     socket.on('execute', async (msg: { workerId: string; command: string; sessionId?: string }) => {
        if (data.role !== 'client' || !data.user) return;
-       
+       console.log(`[Nexus] execute from client ${socket.id} worker=${msg.workerId} session=${msg.sessionId || 'default'} len=${msg.command.length}`);
        if (!WorkerModel.hasAccess(data.user.userId, msg.workerId, 'control')) {
            socket.emit('error', 'Access denied to worker');
            return;
@@ -124,7 +124,7 @@ export const initSocket = (httpServer: any) => {
     // Output from worker
     socket.on('output', (msg: { sessionId?: string; output: string }) => {
         if (data.role !== 'worker' || !data.workerId) return;
-        
+      console.log(`[Nexus] Output from worker=${data.workerId} session=${msg.sessionId || 'default'} len=${msg.output.length}`);
         io.to(`worker:${data.workerId}`).emit('output', {
             workerId: data.workerId,
             sessionId: msg.sessionId,

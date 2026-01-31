@@ -458,6 +458,22 @@
   line-height: 1;
 }
 
+.delete-worker-btn {
+  position: absolute;
+  top: 6px;
+  right: 58px;
+  background: transparent;
+  border: none;
+  color: #f56565;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.delete-worker-btn:hover {
+  color: #fc8181;
+  transform: scale(1.1);
+}
+
 .add-session-btn:hover {
   color: #86efac;
   transform: scale(1.1);

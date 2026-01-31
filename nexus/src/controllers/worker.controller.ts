@@ -32,4 +32,20 @@ export class WorkerController {
     WorkerModel.share(workerId, targetUserId, permission || 'view');
     res.json({ success: true });
   }
+
+  static async delete(req: Request, res: Response) {
+    if (!req.user) { res.status(401).send(); return; }
+    const id = req.params.id as string;
+
+    const worker = WorkerModel.findById(id);
+    if (!worker) { res.status(404).json({error: 'Worker not found'}); return; }
+
+    if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
+      res.status(403).json({error: 'Forbidden'});
+      return;
+    }
+
+    WorkerModel.delete(id);
+    res.json({ success: true });
+  }
 }
