@@ -21,6 +21,7 @@
     "test:e2e": "vitest run tests/e2e.test.ts tests/multi-client.test.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.1",
     "@types/node": "^25.0.6",
     "ts-node": "^10.9.2",
     "vitest": "^4.0.17"

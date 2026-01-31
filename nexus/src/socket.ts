@@ -30,6 +30,17 @@ export const initSocket = (httpServer: any) => {
     },
   });
 
+  // Helper to broadcast worker updates to all connected clients
+  const broadcastWorkerUpdates = () => {
+    io.sockets.sockets.forEach((socket) => {
+      const socketData = socket.data as SocketData;
+      if (socketData.role === 'client' && socketData.user) {
+        const list = WorkerModel.getAccessibleWorkers(socketData.user.userId);
+        socket.emit('workers', list);
+      }
+    });
+  };
+
   io.use(async (socket, next) => {
     const { token, type, apiKey } = (socket.handshake.auth || {}) as any;
     
@@ -68,6 +79,14 @@ export const initSocket = (httpServer: any) => {
     // Worker Life-cycle
     if (data.role === 'worker' && data.workerId) {
         console.log(`Worker ${data.workerId} connected`);
+        broadcastWorkerUpdates();
+    }
+    
+    // Client Life-cycle
+    if (data.role === 'client' && data.user) {
+        // Send initial list
+        const list = WorkerModel.getAccessibleWorkers(data.user.userId);
+        socket.emit('workers', list);
     }
 
     socket.on('disconnect', () => {
@@ -75,11 +94,12 @@ export const initSocket = (httpServer: any) => {
            workers.delete(data.workerId);
            WorkerModel.updateStatus(data.workerId, 'offline');
            console.log(`Worker ${data.workerId} disconnected`);
+           broadcastWorkerUpdates();
        }
     });
 
     // Client Commands
-    socket.on('execute', async (msg: { workerId: string; command: string }) => {
+    socket.on('execute', async (msg: { workerId: string; command: string; sessionId?: string }) => {
        if (data.role !== 'client' || !data.user) return;
        
        if (!WorkerModel.hasAccess(data.user.userId, msg.workerId, 'control')) {
@@ -97,7 +117,7 @@ export const initSocket = (httpServer: any) => {
        io.to(worker.socketId).emit('execute', {
            clientId: socket.id,
            command: msg.command,
-           sessionId: 'default'
+           sessionId: msg.sessionId || 'default'
        });
     });
     
@@ -107,6 +127,7 @@ export const initSocket = (httpServer: any) => {
         
         io.to(`worker:${data.workerId}`).emit('output', {
             workerId: data.workerId,
+            sessionId: msg.sessionId,
             data: msg.output
         });
     });

@@ -51,6 +51,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const NEXUS_URL = import.meta.env.VITE_NEXUS_URL || (import.meta.env.PROD ? '' : 'http://localhost:3002');
+console.log('Using NEXUS_URL:', NEXUS_URL, 'Mode:', import.meta.env.MODE);
 const AUTH_KEY = 'ut-token';
 const LAST_WORKER_KEY = 'ut-last-worker';
 const SESSION_STORE_KEY = 'ut-sessions-v1';
@@ -101,6 +102,7 @@ function App() {
   
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isRestored, setIsRestored] = useState<boolean>(false);
   const [offlineSessions, setOfflineSessions] = useState<Set<string>>(new Set());
 
   const terminalContainerRef = useRef<HTMLDivElement>(null);
@@ -142,6 +144,10 @@ function App() {
   };
 
   const persistSessions = () => {
+    if (!isRestored) {
+      // console.log('Skipping persistence: State not restored yet.');
+      return;
+    }
     const snapshot = sessionsRef.current.map((session) => ({
       id: session.id,
       workerId: session.workerId,
@@ -151,6 +157,7 @@ function App() {
       createdAt: session.createdAt,
       lastActiveAt: session.lastActiveAt,
     }));
+    console.log('Persisting sessions:', snapshot.length, 'ActiveRef:', activeSessionRef.current);
     savedSessionsRef.current = snapshot;
     localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(snapshot));
     localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(sessionOutputRef.current));
@@ -267,8 +274,9 @@ function App() {
     if (socketRef.current) {
       socketRef.current.disconnect();
     }
+    console.log('Initializing Socket.IO with token:', authToken.slice(0, 5) + '...');
     const newSocket = io(NEXUS_URL, {
-      auth: { token: authToken },
+      auth: { token: authToken, type: 'client' },
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -294,16 +302,13 @@ function App() {
     });
 
     newSocket.on('workers', (list: Worker[]) => {
+      console.log('Received workers list:', JSON.stringify(list));
       setWorkers(list);
       workersRef.current = list;
     });
 
-    newSocket.on('session_output', ({ sessionId, data }: { sessionId: string; data: string }) => {
-      sessionOutputRef.current[sessionId] = (sessionOutputRef.current[sessionId] || '') + data;
-      if (sessionOutputRef.current[sessionId].length > MAX_OUTPUT_CHARS) {
-        sessionOutputRef.current[sessionId] = sessionOutputRef.current[sessionId].slice(-MAX_OUTPUT_CHARS);
-      }
-    });
+    // session_output listener removed as it is replaced by 'output' listener in useEffect
+
   };
 
   useEffect(() => {
@@ -348,8 +353,12 @@ function App() {
   }, [gridSessionIds]);
 
   useEffect(() => {
+    console.log('Active Session ID changed to:', activeSessionId);
     activeSessionRef.current = activeSessionId;
-  }, [activeSessionId]);
+    if (isRestored) {
+      schedulePersistSessions();
+    }
+  }, [activeSessionId, isRestored]);
 
   const prevActiveSessionRef = useRef<string | null>(null);
 
@@ -380,7 +389,7 @@ function App() {
           });
         }
       }
-    } else {
+    } else if (isRestored) {
       storedActiveSessionRef.current = null;
       localStorage.removeItem(ACTIVE_SESSION_KEY);
     }
@@ -434,10 +443,12 @@ function App() {
     const savedWorker = localStorage.getItem(LAST_WORKER_KEY);
     if (savedWorker) lastWorkerRef.current = savedWorker;
     const savedSessions = parseStored<StoredSession[]>(localStorage.getItem(SESSION_STORE_KEY), []);
+    console.log('Loaded saved stored sessions:', savedSessions);
     savedSessionsRef.current = savedSessions;
     const savedGrid = parseStored<string[]>(localStorage.getItem(GRID_SLOTS_KEY), []);
     setGridSessionIds(savedGrid.slice(0, 4));
     storedActiveSessionRef.current = localStorage.getItem(ACTIVE_SESSION_KEY);
+    console.log('Restored Active Session ID:', storedActiveSessionRef.current);
     sessionOutputRef.current = parseStored<Record<string, string>>(
       localStorage.getItem(SESSION_OUTPUT_KEY),
       {},
@@ -449,6 +460,14 @@ function App() {
     setCommandSnippets(
       parseStored<Record<string, CommandSnippet[]>>(localStorage.getItem(COMMAND_SNIPPETS_KEY), {}),
     );
+    
+    // Set active session ID immediately if found
+    if (storedActiveSessionRef.current) {
+      setActiveSessionId(storedActiveSessionRef.current);
+    }
+    
+    setIsRestored(true);
+
     fetch(`${NEXUS_URL}/api/auth/status`)
       .then((res) => res.json())
       .then((data) => setNeedsSetup(Boolean(data.needsSetup)))
@@ -562,9 +581,13 @@ function App() {
     });
 
     newSocket.on('output', (data: { workerId: string; sessionId?: string; data: string }) => {
+      console.log(`[CLIENT] Output received: Worker=${data.workerId}, Session=${data.sessionId}, DataLen=${data.data.length}`);
       const targetSessions = data.sessionId
         ? sessionsRef.current.filter((session) => session.id === data.sessionId)
         : sessionsRef.current.filter((session) => session.workerId === data.workerId);
+      
+      console.log(`[CLIENT] Target sessions found: ${targetSessions.length}. Total sessions: ${sessionsRef.current.length}`);
+
       targetSessions.forEach((session) => {
         session.terminal.write(data.data);
         const current = sessionOutputRef.current[session.id] || '';
@@ -752,6 +775,9 @@ function App() {
     if (options?.focus !== false) {
       setActiveSessionId(sessionId);
     }
+    if (socketRef.current) {
+      socketRef.current.emit('subscribe', { workerId: worker.id });
+    }
     if (!options?.sessionId && socketRef.current) {
       socketRef.current.emit('create-session', {
         id: sessionId,
@@ -766,6 +792,43 @@ function App() {
 
     return session;
   };
+
+  useEffect(() => {
+    if (workers.length === 0) return;
+    const saved = savedSessionsRef.current;
+    console.log('Attempting hydration. Workers:', workers.length, 'Saved:', saved.length);
+    if (saved.length === 0) return;
+
+    saved.forEach((ss) => {
+      console.log('Checking session for hydration:', ss.id, ss.workerName);
+      if (sessionsRef.current.some((s) => s.id === ss.id)) {
+          console.log('Session already exists:', ss.id);
+          return;
+      }
+      if (hydratedSessionIdsRef.current.has(ss.id)) {
+          console.log('Session already hydrated:', ss.id);
+          return;
+      }
+
+      const worker = resolveWorkerForSession({ ...ss, workerId: ss.workerId || '' }, workers);
+      console.log('Resolved worker for session:', ss.id, worker ? worker.name : 'null');
+      
+      if (worker) {
+        const output = sessionOutputRef.current[ss.id] || '';
+        const shouldFocus = storedActiveSessionRef.current === ss.id;
+        console.log('Creating session:', ss.id, 'Focus:', shouldFocus, 'StoredActive:', storedActiveSessionRef.current);
+        createNewSession(worker, {
+          sessionId: ss.id,
+          displayName: ss.displayName,
+          createdAt: ss.createdAt,
+          lastActiveAt: ss.lastActiveAt,
+          initialOutput: output,
+          focus: shouldFocus,
+        });
+        hydratedSessionIdsRef.current.add(ss.id);
+      }
+    });
+  }, [workers]);
 
   const closeSession = (sessionId: string) => {
     setGridSessionIds((prev) => prev.filter((id) => id !== sessionId));
@@ -1869,7 +1932,6 @@ function App() {
           </div>
         </div>
       )}
-      {renderAddWorkerModal()}
       <div className="content">
         {renderSidebar()}
         <div className={`terminal-container layout-${layoutMode} ${layoutMode !== 'single' ? 'grid-layout' : ''}`} ref={terminalContainerRef}>

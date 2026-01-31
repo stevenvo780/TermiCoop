@@ -100,7 +100,10 @@ app.get('/api/downloads/latest/worker-linux.:ext', (req, res) => {
         if (!existsSync(root)) return null;
         const entries = fs.readdirSync(root);
         return entries
-          .filter(name => name.startsWith('ultimate-terminal-worker') && name.endsWith(`.${ext}`))
+          .filter(name => (
+            (name.startsWith('ultimate-terminal-worker') || name.startsWith('worker-linux')) &&
+            name.endsWith(`.${ext}`)
+          ))
           .map(name => path.join(root, name))[0];
       })
       .find(Boolean);
