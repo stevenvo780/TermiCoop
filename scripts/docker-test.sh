@@ -31,13 +31,13 @@ fi
 echo "[2/3] Verificando registro del worker..."
 NEXUS_ID="$(compose ps -q nexus)"
 for _ in {1..30}; do
-  if docker logs "$NEXUS_ID" 2>&1 | grep -q "Worker registered"; then
+  if docker logs "$NEXUS_ID" 2>&1 | grep -q "Worker.*connected"; then
     break
   fi
   sleep 1
 done
 
-if ! docker logs "$NEXUS_ID" 2>&1 | grep -q "Worker registered"; then
+if ! docker logs "$NEXUS_ID" 2>&1 | grep -q "Worker.*connected"; then
   echo "El worker no se registro a tiempo."
   compose logs --no-color
   exit 1

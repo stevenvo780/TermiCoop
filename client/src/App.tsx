@@ -152,6 +152,30 @@ function App() {
     }
   };
 
+  const persistSessions = useCallback(() => {
+    if (!isRestored) {
+      return;
+    }
+    const snapshot = sessionsRef.current.map((session) => ({
+      id: session.id,
+      workerId: session.workerId,
+      workerName: session.workerName,
+      workerKey: session.workerKey,
+      displayName: session.displayName,
+      createdAt: session.createdAt,
+      lastActiveAt: session.lastActiveAt,
+    }));
+    console.log('Persisting sessions:', snapshot.length, 'ActiveRef:', activeSessionRef.current);
+    savedSessionsRef.current = snapshot;
+    localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(sessionOutputRef.current));
+    if (activeSessionRef.current) {
+      localStorage.setItem(ACTIVE_SESSION_KEY, activeSessionRef.current);
+    } else {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+    }
+  }, [isRestored]);
+
   const schedulePersistSessions = useCallback(() => {
     if (skipPersistRef.current) return;
     if (persistTimerRef.current) return;
@@ -187,30 +211,6 @@ function App() {
       setDialogLoading(false);
     }
   };
-
-  const persistSessions = useCallback(() => {
-    if (!isRestored) {
-      return;
-    }
-    const snapshot = sessionsRef.current.map((session) => ({
-      id: session.id,
-      workerId: session.workerId,
-      workerName: session.workerName,
-      workerKey: session.workerKey,
-      displayName: session.displayName,
-      createdAt: session.createdAt,
-      lastActiveAt: session.lastActiveAt,
-    }));
-    console.log('Persisting sessions:', snapshot.length, 'ActiveRef:', activeSessionRef.current);
-    savedSessionsRef.current = snapshot;
-    localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(snapshot));
-    localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(sessionOutputRef.current));
-    if (activeSessionRef.current) {
-      localStorage.setItem(ACTIVE_SESSION_KEY, activeSessionRef.current);
-    } else {
-      localStorage.removeItem(ACTIVE_SESSION_KEY);
-    }
-  }, [isRestored]);
 
   useEffect(() => {
     if (createdWorker?.api_key) {
@@ -940,6 +940,8 @@ function App() {
   };
 
   const confirmDeleteWorker = (worker: Worker) => {
+    // Cerrar el modal de tags antes de abrir el diálogo de confirmación
+    setTagModalWorker(null);
     openDialog({
       title: 'Eliminar worker',
       message: `¿Seguro que deseas eliminar ${worker.name}? Esta acción no se puede deshacer.`,
