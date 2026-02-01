@@ -14,7 +14,6 @@ const corsOrigin = allowedOrigins.includes('*') ? '*' : allowedOrigins;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/workers', workerRoutes);
 
@@ -117,7 +116,6 @@ app.get('/api/downloads/latest/worker-linux.:ext', (req, res) => {
     res.download(file, filename);
 });
 
-// Static files (Client)
 const clientPaths = [
   path.resolve(process.cwd(), 'client/dist'),
   path.resolve(process.cwd(), '../client/dist'),

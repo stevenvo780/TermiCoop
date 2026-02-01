@@ -190,7 +190,6 @@ function App() {
 
   const persistSessions = useCallback(() => {
     if (!isRestored) {
-      // console.log('Skipping persistence: State not restored yet.');
       return;
     }
     const snapshot = sessionsRef.current.map((session) => ({
@@ -460,7 +459,6 @@ function App() {
     }
     setToken(storedToken);
 
-    // Try to restore user session
     fetch(`${NEXUS_URL}/api/auth/me`, {
        headers: { 'Authorization': `Bearer ${storedToken}` }
     })
@@ -530,7 +528,6 @@ function App() {
             rows: activeSession.terminal.rows || 24,
           });
         }
-        // Ensure keyboard focus goes to the active terminal
         requestAnimationFrame(() => {
           activeSession.terminal.focus();
           fitAndResizeSession(activeSession);
@@ -608,7 +605,6 @@ function App() {
       parseStored<Record<string, CommandSnippet[]>>(localStorage.getItem(COMMAND_SNIPPETS_KEY), {}),
     );
     
-    // Set active session ID immediately if found
     if (storedActiveSessionRef.current) {
       setActiveSessionId(storedActiveSessionRef.current);
     }
@@ -644,8 +640,6 @@ function App() {
   useEffect(() => {
     setGridSessionIds((prev) => prev.filter((id) => sessionsRef.current.some((s) => s.id === id)));
   }, [sessions]);
-
-  // Socket is fully initialized via initSocket when a valid token is present.
 
   const disposeSession = (session: TerminalSession) => {
     window.removeEventListener('resize', session.resizeHandler);
@@ -750,7 +744,6 @@ function App() {
     term.loadAddon(clipboardAddon);
     term.open(container);
     fitAddon.fit();
-    // Keep terminal focus when user clicks on its area
     container.addEventListener('mousedown', () => {
       setActiveSessionId(sessionId);
       setTimeout(() => term.focus(), 0);
@@ -877,7 +870,6 @@ function App() {
       delete escapeInputRef.current[session.id];
       schedulePersistSessions();
 
-      // Filter out the closed session
       const newSessions = prevSessions.filter(s => s.id !== sessionId);
       return newSessions;
     });
@@ -1199,7 +1191,6 @@ function App() {
     if (layoutMode === 'single') {
       if (activeSessionId) visibleIds.add(activeSessionId);
     } else {
-      // Grid modes
       const slots = layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3];
       slots.forEach(idx => {
         if (gridSessionIds[idx]) visibleIds.add(gridSessionIds[idx]);

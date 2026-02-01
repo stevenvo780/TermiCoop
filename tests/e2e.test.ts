@@ -4,8 +4,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 
-// Configuration
-const NEXUS_PORT = 3003; // Use a different port for testing to avoid conflicts
+const NEXUS_PORT = 3003;
 const NEXUS_URL = `http://localhost:${NEXUS_PORT}`;
 const ADMIN_PASSWORD = 'test-pass-123';
 const WORKER_TOKEN = 'worker-token-test';
@@ -19,7 +18,6 @@ async function waitForServer(url: string, timeoutMs = 10000) {
       const res = await fetch(`${url}/api/auth/status`);
       if (res.ok) return;
     } catch (e) {
-      // keep trying
     }
     await new Promise((r) => setTimeout(r, 300));
   }

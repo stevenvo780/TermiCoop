@@ -10,11 +10,9 @@ import { WorkerModel } from './models/worker.model';
 
 const PORT = process.env.PORT || 3002;
 
-// Initialize Database
 console.log('[Nexus] Initializing database...');
 initDatabase();
 
-// Bootstrap Admin if env var is set and no users exist
 const adminPassword = process.env.ADMIN_PASSWORD;
 let adminId: number | undefined;
 
@@ -29,7 +27,6 @@ if (adminPassword) {
     }
 }
 
-// Bootstrap Dev Worker if WORKER_TOKEN env var is set (Dev/Docker environment)
 const devWorkerToken = process.env.WORKER_TOKEN;
 if (devWorkerToken && adminId) {
     const existingWorker = WorkerModel.findByApiKey(devWorkerToken);

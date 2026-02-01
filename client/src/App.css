@@ -699,12 +699,8 @@
 
 .terminal-container.grid-layout {
   display: grid;
-  gap: 4px; /* Tighter gap */
+  gap: 4px;
   padding: 4px;
-}
-
-.terminal-container.layout-single {
-  /* Default flex behavior */
 }
 
 .terminal-container.layout-split-vertical {
@@ -785,7 +781,6 @@
   color: #c1d9ff;
 }
 
-/* Empty Drop Targets */
 .empty-slot-target {
   border: 1px dashed #2d2d2d;
   border-radius: 4px;
@@ -1144,7 +1139,6 @@
   background: #335171;
 }
 
-/* Tag Modal */
 .tag-modal {
   min-width: 380px;
 }

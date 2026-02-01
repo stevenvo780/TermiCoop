@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, JwtPayload } from '../utils/jwt';
 
-// Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
@@ -18,7 +17,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
      return;
   }
 
-  const token = authHeader.split(' ')[1]; // Bearer <token>
+  const token = authHeader.split(' ')[1];
   if (!token) {
      res.status(401).json({ error: 'Malformed token' });
      return;

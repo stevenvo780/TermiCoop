@@ -5,10 +5,9 @@ import { WorkerModel, Worker } from './models/worker.model';
 interface SocketData {
   role: 'client' | 'worker';
   user?: JwtPayload;
-  workerId?: string; // If role is worker
+  workerId?: string;
 }
 
-// In-memory state
 export const workers: Map<string, Worker & { socketId: string }> = new Map();
 
 interface ActiveSession {
@@ -65,7 +64,6 @@ export const initSocket = (httpServer: any) => {
     },
   });
 
-  // Helper to broadcast worker updates to all connected clients
   const emitWorkerList = (socket: Socket, list: any[]) => {
     socket.emit('workers', list);
     socket.emit('worker-list', list);
@@ -149,8 +147,6 @@ export const initSocket = (httpServer: any) => {
         }
         
         socket.data = { role: 'worker', workerId: worker.id } as SocketData;
-        
-        // Register worker in memory immediately
         workers.set(worker.id, { ...worker, socketId: socket.id, status: 'online' });
         WorkerModel.updateStatus(worker.id, 'online');
         
@@ -167,15 +163,12 @@ export const initSocket = (httpServer: any) => {
     const data = socket.data as SocketData;
     console.log(`New connection: ${socket.id} (${data.role})`);
 
-    // Worker Life-cycle
     if (data.role === 'worker' && data.workerId) {
         console.log(`Worker ${data.workerId} connected`);
         broadcastWorkerUpdates();
     }
     
-    // Client Life-cycle
     if (data.role === 'client' && data.user) {
-        // Send initial list
         sendWorkerListToSocket(socket);
         broadcastSessionList();
     }
@@ -203,7 +196,6 @@ export const initSocket = (httpServer: any) => {
       }
     });
 
-    // Client Commands
     socket.on('execute', async (msg: { workerId: string; command: string; sessionId?: string }) => {
        if (data.role !== 'client' || !data.user) return;
        const sessionId = normalizeSessionId(msg.sessionId || socket.id);
@@ -222,8 +214,6 @@ export const initSocket = (httpServer: any) => {
        const session = ensureActiveSession(msg.workerId, sessionId);
        session.lastActive = Date.now();
        addSessionSubscriber(sessionId, socket.id);
-       
-       // Send to worker
        io.to(worker.socketId).emit('execute', {
            clientId: socket.id,
            command: msg.command,
@@ -255,7 +245,6 @@ export const initSocket = (httpServer: any) => {
       });
     });
     
-    // Output from worker
     socket.on('output', (msg: { sessionId?: string; output: string }) => {
         if (data.role !== 'worker' || !data.workerId) return;
       const sessionId = normalizeSessionId(msg.sessionId);
@@ -287,7 +276,6 @@ export const initSocket = (httpServer: any) => {
       broadcastSessionList();
     });
     
-    // Client joining room
     socket.on('subscribe', (msg: { workerId: string }) => {
         if (data.role !== 'client' || !data.user) return;
         if (WorkerModel.hasAccess(data.user.userId, msg.workerId, 'view')) {

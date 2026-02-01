@@ -50,7 +50,6 @@ export class WorkerModel {
   }
 
   static getAccessibleWorkers(userId: number): (Worker & { permission: string })[] {
-    // Return workers owned by user AND shared with user
     const stmt = db.prepare(`
       SELECT w.*, 'admin' as permission 
       FROM workers w 

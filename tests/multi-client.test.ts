@@ -4,8 +4,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 
-// Configuration
-const NEXUS_PORT = 3004; // Use a different port to avoid conflicts
+const NEXUS_PORT = 3004;
 const NEXUS_URL = `http://localhost:${NEXUS_PORT}`;
 const ADMIN_PASSWORD = 'test-pass-multi-456';
 const WORKER_TOKEN = 'worker-token-test-multi';
@@ -19,7 +18,6 @@ async function waitForServer(url: string, timeoutMs = 10000) {
       const res = await fetch(`${url}/api/auth/status`);
       if (res.ok) return;
     } catch (e) {
-      // keep trying
     }
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -62,7 +60,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    // Get auth token
     const login = await fetch(`${NEXUS_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -87,7 +84,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
       let client1Ready = false;
       let client2Ready = false;
 
-      // Setup client 1
       client1Socket = Client(NEXUS_URL, { auth: { token, type: 'client' } });
       
       client1Socket.on('connect', () => {
@@ -100,7 +96,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
           workerId = workers[0].id;
           console.log('[Test] Got worker ID:', workerId);
           
-          // Resize client 1 to 100x30
           client1Socket.emit('resize', {
             workerId,
             cols: 100,
@@ -108,7 +103,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
           });
 
           setTimeout(() => {
-            // Execute stty size command on client 1
             client1Socket.emit('execute', {
               workerId,
               command: 'stty size\n'
@@ -121,12 +115,10 @@ describe('Multiple Clients - Independent Terminal Views', () => {
         client1Output += data.data;
         console.log('[Test] Client 1 output:', data.data.trim());
         
-        // Check if we got the stty size output
         if (client1Output.includes('30 100') || client1Output.includes('30  100')) {
           console.log('[Test] Client 1 terminal size confirmed: 30 rows x 100 cols');
           client1Ready = true;
           
-          // Now setup client 2
           if (!client2Socket) {
             setupClient2();
           }
@@ -143,7 +135,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
 
         client2Socket.on('worker-list', (workers: any[]) => {
           if (workers.length > 0) {
-            // Resize client 2 to 80x24 (different from client 1)
             client2Socket.emit('resize', {
               workerId,
               cols: 80,
@@ -151,7 +142,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
             });
 
             setTimeout(() => {
-              // Execute stty size command on client 2
               client2Socket.emit('execute', {
                 workerId,
                 command: 'stty size\n'
@@ -164,12 +154,10 @@ describe('Multiple Clients - Independent Terminal Views', () => {
           client2Output += data.data;
           console.log('[Test] Client 2 output:', data.data.trim());
           
-          // Check if we got the stty size output
           if (client2Output.includes('24 80') || client2Output.includes('24  80')) {
             console.log('[Test] Client 2 terminal size confirmed: 24 rows x 80 cols');
             client2Ready = true;
             
-            // Both clients ready with different sizes
             if (client1Ready && client2Ready) {
               console.log('[Test] SUCCESS: Both clients have independent terminal sizes!');
               resolve();
@@ -178,7 +166,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
         });
       }
 
-      // Timeout after 15 seconds
       setTimeout(() => {
         if (!client1Ready || !client2Ready) {
           reject(new Error(`Timeout: client1Ready=${client1Ready}, client2Ready=${client2Ready}`));
@@ -193,7 +180,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
       let client1Received = false;
       let client2Received = false;
 
-      // Client 1 should receive its own output
       client1Socket.on('output', (data: any) => {
         if (data.data.includes('CLIENT1_MARKER')) {
           console.log('[Test] Client 1 received its own output');
@@ -204,7 +190,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
         }
       });
 
-      // Client 2 should receive its own output
       client2Socket.on('output', (data: any) => {
         if (data.data.includes('CLIENT2_MARKER')) {
           console.log('[Test] Client 2 received its own output');
@@ -220,13 +205,11 @@ describe('Multiple Clients - Independent Terminal Views', () => {
         }
       });
 
-      // Get worker ID
       client1Socket.emit('register', { type: 'client' });
       client1Socket.once('worker-list', (workers: any[]) => {
         if (workers.length > 0) {
           workerId = workers[0].id;
 
-          // Send different commands to each client
           setTimeout(() => {
             client1Socket.emit('execute', {
               workerId,
@@ -243,7 +226,6 @@ describe('Multiple Clients - Independent Terminal Views', () => {
         }
       });
 
-      // Timeout after 10 seconds
       setTimeout(() => {
         if (!client1Received || !client2Received) {
           reject(new Error(`Timeout: client1Received=${client1Received}, client2Received=${client2Received}`));

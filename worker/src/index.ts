@@ -6,15 +6,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Setup native module paths for packaged binary
 const setupNativeModulePaths = () => {
-  // Add system lib path for native modules when running as packaged binary
   const systemLibPath = '/usr/lib/ultimate-terminal';
   if (fs.existsSync(systemLibPath)) {
     const Module = require('module');
     const originalResolveFilename = Module._resolveFilename;
     Module._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
-      // Intercept node-pty native module loading
       if (request.includes('pty.node') || request.includes('prebuilds/linux-x64')) {
         const nativePath = path.join(systemLibPath, 'prebuilds/linux-x64/pty.node');
         if (fs.existsSync(nativePath)) {

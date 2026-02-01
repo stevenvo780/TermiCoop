@@ -8,7 +8,6 @@ if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const dbPath = path.join(dataDir, 'nexus.db');
 
-// Use system native binding if available (for packaged binary)
 const SYSTEM_NATIVE_BINDING = '/usr/lib/ultimate-terminal/prebuilds/linux-x64/better_sqlite3.node';
 const dbOptions = fs.existsSync(SYSTEM_NATIVE_BINDING)
   ? { nativeBinding: SYSTEM_NATIVE_BINDING }
@@ -18,7 +17,6 @@ const db = new Database(dbPath, dbOptions);
 db.pragma('journal_mode = WAL');
 
 export const initDatabase = () => {
-  // Users Table
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +28,6 @@ export const initDatabase = () => {
     );
   `);
 
-  // Workers Table (Devices)
   db.exec(`
     CREATE TABLE IF NOT EXISTS workers (
       id TEXT PRIMARY KEY,
@@ -43,7 +40,6 @@ export const initDatabase = () => {
     );
   `);
 
-  // Shared access to workers
   db.exec(`
     CREATE TABLE IF NOT EXISTS worker_shares (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,7 +52,6 @@ export const initDatabase = () => {
     );
   `);
 
-  // Sessions (Terminal sessions)
   db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -71,7 +66,6 @@ export const initDatabase = () => {
     );
   `);
 
-  // Audit Log
   db.exec(`
     CREATE TABLE IF NOT EXISTS audit (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
