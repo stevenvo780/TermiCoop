@@ -70,3 +70,20 @@ If you change `NEXUS_PORT`, also set `VITE_NEXUS_URL` for the client build.
   - Optional: set `NEXUS_SETUP_TOKEN` to allow remote first-time setup (UI has a Setup Token field).
   - Optional: set `ALLOW_UNAUTHENTICATED_WORKERS=true` to accept workers without a token (not recommended).
   - Point `VITE_NEXUS_URL` and `CLIENT_ORIGIN` to your deployment URLs.
+
+## API y eventos relevantes
+- Auth REST:
+  - `POST /api/auth/setup` `{ password, setupToken? }` crea admin inicial (requiere `NEXUS_SETUP_TOKEN` si está definido).
+  - `POST /api/auth/login` `{ username?, password }` (por defecto usa admin si no hay username).
+  - `POST /api/auth/register` `{ username, password, setupToken? }` valida `NEXUS_SETUP_TOKEN` si existe.
+  - `POST /api/auth/password` `{ currentPassword, newPassword }` (autenticado).
+- Worker REST:
+  - `GET /api/workers`, `POST /api/workers` crea con API key, `DELETE /api/workers/:id` rechaza si está online.
+- Socket.io (client): `workers`/`worker-list`, `session-list`, `output`, `session-closed`; comandos: `subscribe`, `execute`, `resize`, `join-session`, `leave-session`, `get-session-output`.
+- Socket.io (worker): conectar con `auth { type: 'worker', apiKey, workerName }`, emitir `heartbeat`, `output`, `session-shell-exited`.
+- Persistencia de sesiones: Nexus mantiene sesiones activas en memoria; los metadatos se emiten a clientes (`session-list`), pero no se guardan en disco tras reinicio. Si se requiere persistencia, añadir almacenamiento en BD antes de producción.
+
+## Tests
+- Lint: `npm run lint --workspace=client`.
+- Type-check: `npx tsc --noEmit --project nexus/tsconfig.json` y `npx tsc --noEmit --project worker/tsconfig.json`.
+- Playwright (requiere stack corriendo: Nexus en :13002, client servido en :13003, worker apuntando a Nexus): `npx playwright test tests/terminal-e2e.spec.ts`.

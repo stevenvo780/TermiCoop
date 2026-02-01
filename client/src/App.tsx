@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -83,7 +83,7 @@ const MAX_HISTORY_ITEMS = 60;
 type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 function App() {
-  const getAdaptiveFontSize = () => (window.innerWidth <= 960 ? 13 : 14);
+  const getAdaptiveFontSize = useCallback(() => (window.innerWidth <= 960 ? 13 : 14), []);
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -139,7 +139,7 @@ function App() {
   const skipPersistRef = useRef<boolean>(true);
   const hadSessionsRef = useRef<boolean>(false);
 
-  const normalizeWorkerKey = (name: string) => name.trim().toLowerCase();
+  const normalizeWorkerKey = useCallback((name: string) => name.trim().toLowerCase(), []);
   const resolvedWorkerToken = createdWorker?.api_key || 'TU_WORKER_TOKEN';
 
   const parseStored = <T,>(value: string | null, fallback: T): T => {
@@ -152,14 +152,14 @@ function App() {
     }
   };
 
-  const schedulePersistSessions = () => {
+  const schedulePersistSessions = useCallback(() => {
     if (skipPersistRef.current) return;
     if (persistTimerRef.current) return;
     persistTimerRef.current = setTimeout(() => {
       persistTimerRef.current = null;
       persistSessions();
     }, 800);
-  };
+  }, [persistSessions]);
 
   const closeDialog = () => {
     if (dialogLoading) return;
@@ -188,7 +188,7 @@ function App() {
     }
   };
 
-  const persistSessions = () => {
+  const persistSessions = useCallback(() => {
     if (!isRestored) {
       // console.log('Skipping persistence: State not restored yet.');
       return;
@@ -211,7 +211,7 @@ function App() {
     } else {
       localStorage.removeItem(ACTIVE_SESSION_KEY);
     }
-  };
+  }, [isRestored]);
 
   useEffect(() => {
     if (createdWorker?.api_key) {
@@ -229,15 +229,15 @@ function App() {
     }
   };
 
-  const resolveWorkerForSession = (session: { workerId: string; workerKey: string }, list: Worker[]) => {
+  const resolveWorkerForSession = useCallback((session: { workerId: string; workerKey: string }, list: Worker[]) => {
     const byId = list.find((worker) => worker.id === session.workerId);
     if (byId) return byId;
     const sameKey = list.filter((worker) => normalizeWorkerKey(worker.name) === session.workerKey);
     if (sameKey.length === 0) return null;
     return sameKey.find((worker) => worker.status !== 'offline') || sameKey[0];
-  };
+  }, [normalizeWorkerKey]);
 
-  const addCommandToHistory = (workerKey: string, command: string) => {
+  const addCommandToHistory = useCallback((workerKey: string, command: string) => {
     const trimmed = command.trim();
     if (!trimmed) return;
     setCommandHistory((prev) => {
@@ -245,9 +245,9 @@ function App() {
       const next = [trimmed, ...existing.filter((item) => item !== trimmed)].slice(0, MAX_HISTORY_ITEMS);
       return { ...prev, [workerKey]: next };
     });
-  };
+  }, []);
 
-  const trackInputForHistory = (sessionId: string, workerKey: string, data: string) => {
+  const trackInputForHistory = useCallback((sessionId: string, workerKey: string, data: string) => {
     let buffer = inputBuffersRef.current[sessionId] || '';
     let inEscape = escapeInputRef.current[sessionId] || false;
     for (const ch of data) {
@@ -280,7 +280,7 @@ function App() {
     }
     inputBuffersRef.current[sessionId] = buffer;
     escapeInputRef.current[sessionId] = inEscape;
-  };
+  }, [addCommandToHistory]);
 
   const sendCommandToSession = (session: TerminalSession, command: string) => {
     if (!socketRef.current) return;
@@ -474,6 +474,7 @@ function App() {
         localStorage.removeItem(AUTH_KEY);
         setNeedsSetup(true);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -487,7 +488,7 @@ function App() {
       return;
     }
     schedulePersistSessions();
-  }, [sessions]);
+  }, [sessions, schedulePersistSessions]);
 
   useEffect(() => {
     localStorage.setItem(GRID_SLOTS_KEY, JSON.stringify(gridSessionIds));
@@ -499,7 +500,7 @@ function App() {
     if (isRestored) {
       schedulePersistSessions();
     }
-  }, [activeSessionId, isRestored]);
+  }, [activeSessionId, isRestored, schedulePersistSessions]);
 
   const prevActiveSessionRef = useRef<string | null>(null);
 
@@ -541,7 +542,7 @@ function App() {
     }
     
     prevActiveSessionRef.current = activeSessionId;
-  }, [activeSessionId]);
+  }, [activeSessionId, isRestored]);
 
   useEffect(() => {
     if (sessions.length > 0) {
@@ -553,7 +554,7 @@ function App() {
       lastWorkerRef.current = null;
       hadSessionsRef.current = false;
     }
-  }, [sessions.length]);
+  }, [sessions.length, isRestored]);
 
   useEffect(() => {
     localStorage.setItem(WORKER_TAGS_KEY, JSON.stringify(workerTags));
@@ -580,7 +581,7 @@ function App() {
       }
     });
     setOfflineSessions(offline);
-  }, [sessions, workers]);
+  }, [sessions, workers, resolveWorkerForSession]);
 
   useEffect(() => {
     const saved = localStorage.getItem(AUTH_KEY);
@@ -704,7 +705,7 @@ function App() {
     }
   };
 
-  const createNewSession = (
+  const createNewSession = useCallback((
     worker: Worker,
     options?: {
       sessionId?: string;
@@ -821,7 +822,7 @@ function App() {
     }, 100);
 
     return session;
-  };
+  }, [getAdaptiveFontSize, normalizeWorkerKey, trackInputForHistory]);
 
   useEffect(() => {
     if (workers.length === 0) return;
@@ -858,7 +859,7 @@ function App() {
         hydratedSessionIdsRef.current.add(ss.id);
       }
     });
-  }, [workers]);
+  }, [workers, createNewSession, resolveWorkerForSession]);
 
   const closeSession = (sessionId: string) => {
     setGridSessionIds((prev) => prev.filter((id) => id !== sessionId));
@@ -1105,7 +1106,7 @@ function App() {
     return idx >= 0 ? idx : 0;
   };
 
-  const assignGridSlot = (slotIndex: number, sessionId: string) => {
+  const assignGridSlot = useCallback((slotIndex: number, sessionId: string) => {
     if (layoutMode === 'single') setLayoutMode('quad');
     setGridSessionIds((prev) => {
       const next = [...prev];
@@ -1119,7 +1120,7 @@ function App() {
       return next.slice(0, 4);
     });
     setActiveSessionId(sessionId);
-  };
+  }, [layoutMode]);
 
   const pinSessionToGrid = (sessionId: string) => {
     assignGridSlot(nextEmptySlot(), sessionId);
@@ -1296,7 +1297,7 @@ function App() {
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [token, layoutMode, gridSessionIds, activeSessionId]);
+  }, [token, layoutMode, gridSessionIds, activeSessionId, assignGridSlot]);
 
   useEffect(() => {
     const active = sessionsRef.current.find((s) => s.id === activeSessionRef.current);
@@ -1399,7 +1400,7 @@ function App() {
     const formData = new FormData(e.target as HTMLFormElement);
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
-    const submitter = (e.nativeEvent as any).submitter;
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const isRegister = submitter && submitter.name === 'register';
 
     setAuthError(null);
@@ -1424,8 +1425,8 @@ function App() {
       setNeedsSetup(false);
       
       initSocket(data.token);
-    } catch (err) {
-      setAuthError((err as Error).message);
+    } catch (err: unknown) {
+      setAuthError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setBusy(false);
     }
@@ -1446,10 +1447,11 @@ function App() {
       const data = await res.json();
       if(!res.ok) throw new Error(data.error);
       setCreatedWorker(data);
-    } catch(err:any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Ocurrio un error al crear el worker.';
       openDialog({
         title: 'No se pudo crear el worker',
-        message: err?.message || 'Ocurrio un error al crear el worker.',
+        message,
         tone: 'danger',
         actions: [{ label: 'Cerrar', variant: 'primary', onClick: closeDialog }],
       });
