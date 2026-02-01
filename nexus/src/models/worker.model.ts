@@ -44,7 +44,7 @@ export class WorkerModel {
   static findByApiKey(apiKey: string): Worker | undefined {
     return db.prepare('SELECT * FROM workers WHERE api_key = ?').get(apiKey) as Worker | undefined;
   }
-  
+
   static findById(id: string): Worker | undefined {
     return db.prepare('SELECT * FROM workers WHERE id = ?').get(id) as Worker | undefined;
   }
@@ -62,7 +62,7 @@ export class WorkerModel {
       JOIN worker_shares ws ON w.id = ws.worker_id
       WHERE ws.user_id = ?
     `);
-    
+
     return stmt.all(userId, userId) as (Worker & { permission: string })[];
   }
 
@@ -91,16 +91,26 @@ export class WorkerModel {
     db.prepare('DELETE FROM worker_shares WHERE worker_id = ?').run(id);
     db.prepare('DELETE FROM workers WHERE id = ?').run(id);
   }
-  
+
   static hasAccess(userId: number, workerId: string, requiredPermission: 'view' | 'control' | 'admin' = 'view'): boolean {
-     const worker = this.findById(workerId);
-     if (!worker) return false;
-     if (worker.owner_id === userId) return true;
-     
-     const share = db.prepare('SELECT permission FROM worker_shares WHERE worker_id = ? AND user_id = ?').get(workerId, userId) as { permission: string } | undefined;
-     if (!share) return false;
-     
-     const levels = { 'view': 1, 'control': 2, 'admin': 3 };
-     return levels[share.permission as keyof typeof levels] >= levels[requiredPermission];
+    const worker = this.findById(workerId);
+    if (!worker) return false;
+    if (worker.owner_id === userId) return true;
+
+    const share = db.prepare('SELECT permission FROM worker_shares WHERE worker_id = ? AND user_id = ?').get(workerId, userId) as { permission: string } | undefined;
+    if (!share) return false;
+
+    const levels = { 'view': 1, 'control': 2, 'admin': 3 };
+    return levels[share.permission as keyof typeof levels] >= levels[requiredPermission];
+  }
+
+  static getShares(workerId: string): { userId: number; username: string; permission: string }[] {
+    const stmt = db.prepare(`
+      SELECT ws.user_id as userId, u.username, ws.permission
+      FROM worker_shares ws
+      JOIN users u ON ws.user_id = u.id
+      WHERE ws.worker_id = ?
+    `);
+    return stmt.all(workerId) as { userId: number; username: string; permission: string }[];
   }
 }

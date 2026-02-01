@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { WorkerModel } from '../models/worker.model';
+import { UserModel } from '../models/user.model';
 
 export class WorkerController {
   static async list(req: Request, res: Response) {
@@ -11,25 +12,67 @@ export class WorkerController {
   static async create(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
     const { name } = req.body;
-    if (!name) { res.status(400).json({error: 'Name required'}); return; }
-    
+    if (!name) { res.status(400).json({ error: 'Name required' }); return; }
+
     const worker = WorkerModel.create(req.user.userId, name);
     res.json(worker);
   }
-  
+
   static async share(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
-    const { workerId, targetUserId, permission } = req.body;
-    
+    const { workerId, targetUsername, permission } = req.body;
+
+    if (!targetUsername) { res.status(400).json({ error: 'Username required' }); return; }
+
     const worker = WorkerModel.findById(workerId);
-    if (!worker) { res.status(404).json({error: 'Worker not found'}); return; }
-    
+    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
-        res.status(403).json({error: 'Only owner can share'}); 
-        return;
+      res.status(403).json({ error: 'Only owner can share' });
+      return;
     }
-    
-    WorkerModel.share(workerId, targetUserId, permission || 'view');
+
+    const targetUser = UserModel.findByUsername(targetUsername);
+    if (!targetUser) { res.status(404).json({ error: 'User not found' }); return; }
+
+    if (targetUser.id === worker.owner_id) {
+      res.status(400).json({ error: 'Cannot share with owner' });
+      return;
+    }
+
+    WorkerModel.share(workerId, targetUser.id, permission || 'view');
+    res.json({ success: true, user: { id: targetUser.id, username: targetUser.username, permission: permission || 'view' } });
+  }
+
+  static async getShares(req: Request, res: Response) {
+    if (!req.user) { res.status(401).send(); return; }
+    const workerId = req.params.id as string;
+
+    const worker = WorkerModel.findById(workerId);
+    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+
+    if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const shares = WorkerModel.getShares(workerId);
+    res.json(shares);
+  }
+
+  static async unshare(req: Request, res: Response) {
+    if (!req.user) { res.status(401).send(); return; }
+    const { workerId, targetUserId } = req.body;
+
+    const worker = WorkerModel.findById(workerId);
+    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+
+    if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
+      res.status(403).json({ error: 'Only owner can unshare' });
+      return;
+    }
+
+    WorkerModel.unshare(workerId, targetUserId);
     res.json({ success: true });
   }
 
@@ -38,10 +81,10 @@ export class WorkerController {
     const id = req.params.id as string;
 
     const worker = WorkerModel.findById(id);
-    if (!worker) { res.status(404).json({error: 'Worker not found'}); return; }
+    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
-      res.status(403).json({error: 'Forbidden'});
+      res.status(403).json({ error: 'Forbidden' });
       return;
     }
 

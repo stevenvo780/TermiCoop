@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
+import { ShareModal } from './components/ShareModal';
 
 interface Worker {
   id: string;
@@ -109,6 +110,7 @@ function App() {
   const [commandHistory, setCommandHistory] = useState<Record<string, string[]>>({});
   const [commandSnippets, setCommandSnippets] = useState<Record<string, CommandSnippet[]>>({});
   const [tagModalWorker, setTagModalWorker] = useState<Worker | null>(null);
+  const [shareModalWorker, setShareModalWorker] = useState<Worker | null>(null);
   const [tagModalInput, setTagModalInput] = useState<string>('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showDropOverlay, setShowDropOverlay] = useState<boolean>(false);
@@ -117,7 +119,7 @@ function App() {
   const [installToken, setInstallToken] = useState<string>('TU_WORKER_TOKEN');
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [dialogLoading, setDialogLoading] = useState<boolean>(false);
-  
+
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isRestored, setIsRestored] = useState<boolean>(false);
@@ -460,19 +462,19 @@ function App() {
     setToken(storedToken);
 
     fetch(`${NEXUS_URL}/api/auth/me`, {
-       headers: { 'Authorization': `Bearer ${storedToken}` }
+      headers: { 'Authorization': `Bearer ${storedToken}` }
     })
-    .then(res => {
+      .then(res => {
         if (!res.ok) throw new Error('Invalid token');
         return res.json();
-    })
-    .then(() => initSocket(storedToken))
-    .catch(() => {
+      })
+      .then(() => initSocket(storedToken))
+      .catch(() => {
         setToken(null);
         localStorage.removeItem(AUTH_KEY);
         setNeedsSetup(true);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -506,7 +508,7 @@ function App() {
     if (prevActiveSessionRef.current && prevActiveSessionRef.current !== activeSessionId && socketRef.current) {
       socketRef.current.emit('leave-session', { sessionId: prevActiveSessionRef.current });
     }
-    
+
     if (activeSessionId) {
       storedActiveSessionRef.current = activeSessionId;
       localStorage.setItem(ACTIVE_SESSION_KEY, activeSessionId);
@@ -537,7 +539,7 @@ function App() {
       storedActiveSessionRef.current = null;
       localStorage.removeItem(ACTIVE_SESSION_KEY);
     }
-    
+
     prevActiveSessionRef.current = activeSessionId;
   }, [activeSessionId, isRestored]);
 
@@ -604,11 +606,11 @@ function App() {
     setCommandSnippets(
       parseStored<Record<string, CommandSnippet[]>>(localStorage.getItem(COMMAND_SNIPPETS_KEY), {}),
     );
-    
+
     if (storedActiveSessionRef.current) {
       setActiveSessionId(storedActiveSessionRef.current);
     }
-    
+
     setIsRestored(true);
 
     fetch(`${NEXUS_URL}/api/auth/status`)
@@ -826,17 +828,17 @@ function App() {
     saved.forEach((ss) => {
       console.log('Checking session for hydration:', ss.id, ss.workerName);
       if (sessionsRef.current.some((s) => s.id === ss.id)) {
-          console.log('Session already exists:', ss.id);
-          return;
+        console.log('Session already exists:', ss.id);
+        return;
       }
       if (hydratedSessionIdsRef.current.has(ss.id)) {
-          console.log('Session already hydrated:', ss.id);
-          return;
+        console.log('Session already hydrated:', ss.id);
+        return;
       }
 
       const worker = resolveWorkerForSession({ ...ss, workerId: ss.workerId || '' }, workers);
       console.log('Resolved worker for session:', ss.id, worker ? worker.name : 'null');
-      
+
       if (worker) {
         const output = sessionOutputRef.current[ss.id] || '';
         const shouldFocus = storedActiveSessionRef.current === ss.id;
@@ -859,7 +861,7 @@ function App() {
     if (socketRef.current) {
       socketRef.current.emit('close-session', { sessionId });
     }
-    
+
     setSessions(prevSessions => {
       const session = prevSessions.find(s => s.id === sessionId);
       if (!session) return prevSessions;
@@ -1080,13 +1082,13 @@ function App() {
   const groupedWorkers =
     workerGrouping === 'tag'
       ? filteredWorkers.reduce((acc, worker) => {
-          const workerKey = normalizeWorkerKey(worker.name);
-          const tags = workerTags[workerKey] || [];
-          const groupLabel = tags[0] || 'Sin etiquetas';
-          acc[groupLabel] = acc[groupLabel] || [];
-          acc[groupLabel].push(worker);
-          return acc;
-        }, {} as Record<string, Worker[]>)
+        const workerKey = normalizeWorkerKey(worker.name);
+        const tags = workerTags[workerKey] || [];
+        const groupLabel = tags[0] || 'Sin etiquetas';
+        acc[groupLabel] = acc[groupLabel] || [];
+        acc[groupLabel].push(worker);
+        return acc;
+      }, {} as Record<string, Worker[]>)
       : { Todos: filteredWorkers };
 
   const groupedWorkerEntries = Object.entries(groupedWorkers).sort(([a], [b]) => {
@@ -1157,8 +1159,8 @@ function App() {
     if (sessionId) {
       assignGridSlot(hotspotIndex, sessionId);
       if (layoutMode === 'single') {
-         if (hotspotIndex === 1) setLayoutMode('split-vertical');
-         else if (hotspotIndex > 1) setLayoutMode('quad');
+        if (hotspotIndex === 1) setLayoutMode('split-vertical');
+        else if (hotspotIndex > 1) setLayoutMode('quad');
       }
     }
     setDraggingSessionId(null);
@@ -1189,7 +1191,7 @@ function App() {
 
   useEffect(() => {
     const visibleIds = new Set<string>();
-    
+
     if (layoutMode === 'single') {
       if (activeSessionId) visibleIds.add(activeSessionId);
     } else {
@@ -1208,7 +1210,7 @@ function App() {
       const visible = visibleIds.has(session.id);
       session.containerRef.style.display = visible ? 'flex' : 'none';
       session.containerRef.style.order = orderMap[session.id]?.toString() || '0';
-      
+
       if (session.id === activeSessionId) {
         session.containerRef.classList.add('active-slot');
       } else {
@@ -1255,24 +1257,24 @@ function App() {
       }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(key)) {
         if (layoutMode === 'single') {
-             setLayoutMode('quad');
+          setLayoutMode('quad');
         }
         const currentSlot = gridSessionIds.findIndex(id => id === activeSessionId);
         let nextSlot = currentSlot;
 
         if (currentSlot === -1) {
-             setActiveSessionId(gridSessionIds[0]);
-             return;
+          setActiveSessionId(gridSessionIds[0]);
+          return;
         }
 
         if (key === 'arrowleft') nextSlot = currentSlot === 1 ? 0 : (currentSlot === 3 ? 2 : currentSlot);
         if (key === 'arrowright') nextSlot = currentSlot === 0 ? 1 : (currentSlot === 2 ? 3 : currentSlot);
         if (key === 'arrowup') nextSlot = currentSlot === 2 ? 0 : (currentSlot === 3 ? 1 : currentSlot);
         if (key === 'arrowdown') nextSlot = currentSlot === 0 ? 2 : (currentSlot === 1 ? 3 : currentSlot);
-        
+
         const targetId = gridSessionIds[nextSlot];
         if (targetId) {
-            setActiveSessionId(targetId);
+          setActiveSessionId(targetId);
         }
         event.preventDefault();
         return;
@@ -1331,9 +1333,9 @@ function App() {
 
       const display = shouldShow ? 'flex' : 'none';
       if (container.style.display !== display) {
-         container.style.display = display;
+        container.style.display = display;
       }
-      
+
       if (shouldShow) {
         container.style.order = order.toString();
         requestAnimationFrame(() => fitAndResizeSession(session));
@@ -1416,7 +1418,7 @@ function App() {
       localStorage.setItem('ut-user', JSON.stringify(data.user));
       setToken(data.token);
       setNeedsSetup(false);
-      
+
       initSocket(data.token);
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : 'Authentication failed');
@@ -1431,14 +1433,14 @@ function App() {
     try {
       const res = await fetch(`${NEXUS_URL}/api/workers`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ name: newWorkerName })
       });
       const data = await res.json();
-      if(!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error);
       setCreatedWorker(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Ocurrio un error al crear el worker.';
@@ -1467,7 +1469,7 @@ function App() {
             {!createdWorker ? (
               <>
                 <p>Enter a name appropriately describing the worker (e.g. "Prod Database").</p>
-                <input 
+                <input
                   value={newWorkerName}
                   onChange={e => setNewWorkerName(e.target.value)}
                   placeholder="Worker Name"
@@ -1709,10 +1711,10 @@ function App() {
                         <div className="worker-tags">
                           {tags.length > 0
                             ? tags.map((tag) => (
-                                <span key={`${worker.id}-${tag}`} className="tag-chip">
-                                  {tag}
-                                </span>
-                              ))
+                              <span key={`${worker.id}-${tag}`} className="tag-chip">
+                                {tag}
+                              </span>
+                            ))
                             : <span className="tag-chip empty">Sin tags</span>}
                         </div>
                         <div className="worker-actions">
@@ -1745,6 +1747,17 @@ function App() {
                             title="Editar tags"
                           >
                             🏷
+                          </button>
+                          <button
+                            className="share-worker-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShareModalWorker(worker);
+                            }}
+                            title="Compartir worker"
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2em' }}
+                          >
+                            🔗
                           </button>
                         </div>
                       </div>
@@ -1885,8 +1898,8 @@ function App() {
             </option>
           ))}
         </select>
-        <button 
-          className="ghost-btn" 
+        <button
+          className="ghost-btn"
           onClick={() => setShowAddWorkerModal(true)}
           style={{ marginLeft: '5px', padding: '0 8px', fontSize: '1.2em' }}
           title="Add New Worker"
@@ -1923,13 +1936,12 @@ function App() {
         >
           ⇩ PWA
         </button>
-        <div className={`status ${
-          connectionState === 'connected'
-            ? 'ok'
-            : connectionState === 'reconnecting' || connectionState === 'connecting'
-              ? 'warn'
-              : 'bad'
-        }`}>
+        <div className={`status ${connectionState === 'connected'
+          ? 'ok'
+          : connectionState === 'reconnecting' || connectionState === 'connecting'
+            ? 'warn'
+            : 'bad'
+          }`}>
           {connectionState === 'connected' && 'Conectado'}
           {connectionState === 'connecting' && 'Conectando...'}
           {connectionState === 'reconnecting' && 'Reconectando...'}
@@ -1995,24 +2007,24 @@ function App() {
     return (
       <div className="layout" style={{ justifyContent: 'center', alignItems: 'center', display: 'flex', height: '100vh', background: '#111' }}>
         <div className="setup-container" style={{ width: '400px', maxWidth: '90%' }}>
-            <h2 style={{ textAlign: 'center' }}>Ultimate Terminal</h2>
-            <div className="setup-form" style={{ background: '#1e1e1e', padding: '30px', borderRadius: '8px' }}>
-                <form onSubmit={handleLogin}>
-                    <div className="form-group">
-                        <label>Username</label>
-                        <input name="username" placeholder="admin" autoFocus style={{ width: '100%', padding: '10px', marginTop: '5px', background: '#333', border: 'none', color: '#fff' }} />
-                    </div>
-                    <div className="form-group" style={{ marginTop: '15px' }}>
-                        <label>Password</label>
-                        <input name="password" type="password" placeholder="••••••" style={{ width: '100%', padding: '10px', marginTop: '5px', background: '#333', border: 'none', color: '#fff' }} />
-                    </div>
-                    {authError && <p className="error" style={{ color: '#ff6b6b', marginTop: '10px' }}>{authError}</p>}
-                    <div className="actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                        <button type="submit" name="login" disabled={busy} style={{ flex: 1, padding: '10px', background: '#007acc', border: 'none', color: '#fff', cursor: 'pointer' }}>Login</button>
-                        <button type="submit" name="register" disabled={busy} style={{ flex: 1, padding: '10px', background: '#333', border: '1px solid #555', color: '#fff', cursor: 'pointer' }}>Register</button>
-                    </div>
-                </form>
-            </div>
+          <h2 style={{ textAlign: 'center' }}>Ultimate Terminal</h2>
+          <div className="setup-form" style={{ background: '#1e1e1e', padding: '30px', borderRadius: '8px' }}>
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <label>Username</label>
+                <input name="username" placeholder="admin" autoFocus style={{ width: '100%', padding: '10px', marginTop: '5px', background: '#333', border: 'none', color: '#fff' }} />
+              </div>
+              <div className="form-group" style={{ marginTop: '15px' }}>
+                <label>Password</label>
+                <input name="password" type="password" placeholder="••••••" style={{ width: '100%', padding: '10px', marginTop: '5px', background: '#333', border: 'none', color: '#fff' }} />
+              </div>
+              {authError && <p className="error" style={{ color: '#ff6b6b', marginTop: '10px' }}>{authError}</p>}
+              <div className="actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                <button type="submit" name="login" disabled={busy} style={{ flex: 1, padding: '10px', background: '#007acc', border: 'none', color: '#fff', cursor: 'pointer' }}>Login</button>
+                <button type="submit" name="register" disabled={busy} style={{ flex: 1, padding: '10px', background: '#333', border: '1px solid #555', color: '#fff', cursor: 'pointer' }}>Register</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     );
@@ -2065,8 +2077,8 @@ function App() {
                   Guardar Tags
                 </button>
                 {tagModalWorker.status === 'offline' && (
-                  <button 
-                    className="btn-danger" 
+                  <button
+                    className="btn-danger"
                     onClick={() => confirmDeleteWorker(tagModalWorker)}
                   >
                     Eliminar Worker
@@ -2077,6 +2089,17 @@ function App() {
           </div>
         </div>
       )}
+
+      {
+        shareModalWorker && (
+          <ShareModal
+            worker={shareModalWorker}
+            onClose={() => setShareModalWorker(null)}
+            nexusUrl={NEXUS_URL}
+            token={token}
+          />
+        )
+      }
       <div className="content">
         {renderSidebar()}
         <div className={`terminal-container layout-${layoutMode} ${layoutMode !== 'single' ? 'grid-layout' : ''}`} ref={terminalContainerRef}>
@@ -2087,7 +2110,7 @@ function App() {
                 onClick={() => setLayoutMode('single')}
                 title="Vista unica"
               >
-                <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" fill="none" strokeWidth="2"/></svg>
+                <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" fill="none" strokeWidth="2" /></svg>
               </button>
               <button
                 className={`layout-icon-btn ${layoutMode === 'split-vertical' ? 'active' : ''}`}
@@ -2099,7 +2122,7 @@ function App() {
                 }}
                 title="Vista Dividida"
               >
-                <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z M12 4v16" stroke="currentColor" fill="none" strokeWidth="2"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z M12 4v16" stroke="currentColor" fill="none" strokeWidth="2" /></svg>
               </button>
               <button
                 className={`layout-icon-btn ${layoutMode === 'quad' ? 'active' : ''}`}
@@ -2111,16 +2134,16 @@ function App() {
                 }}
                 title="Vista Cuadruple"
               >
-                <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z M12 4v16M4 12h16" stroke="currentColor" fill="none" strokeWidth="2"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z M12 4v16M4 12h16" stroke="currentColor" fill="none" strokeWidth="2" /></svg>
               </button>
             </div>
             {layoutMode !== 'single' && (
-               <div style={{ flex: 1 }}></div> 
+              <div style={{ flex: 1 }}></div>
             )}
             {layoutMode !== 'single' && (
-              <button 
-                className="ghost-btn" 
-                onClick={clearGrid} 
+              <button
+                className="ghost-btn"
+                onClick={clearGrid}
                 title="Limpiar grid"
                 style={{ fontSize: '0.8em', padding: '2px 8px' }}
               >
@@ -2141,7 +2164,7 @@ function App() {
                     onDragOver={handleDragOverSlot}
                   >
                     <div className="sc-icon">
-                       {draggingSessionId ? '⤓' : '+'}
+                      {draggingSessionId ? '⤓' : '+'}
                     </div>
                     <span>{draggingSessionId ? 'Soltar aquí' : 'Vacío'}</span>
                   </div>
@@ -2173,7 +2196,7 @@ function App() {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 
