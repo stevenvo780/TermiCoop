@@ -10,6 +10,21 @@ const NEXUS_URL = `http://localhost:${NEXUS_PORT}`;
 const ADMIN_PASSWORD = 'test-pass-123';
 const WORKER_TOKEN = 'worker-token-test';
 const JWT_SECRET = 'test-secret-token';
+const DATA_DIR = path.resolve(__dirname, '..', `.qodo-${NEXUS_PORT}`);
+
+async function waitForServer(url: string, timeoutMs = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${url}/api/auth/status`);
+      if (res.ok) return;
+    } catch (e) {
+      // keep trying
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error(`Server at ${url} did not become ready`);
+}
 
 describe('Ultimate Terminal E2E', () => {
   let nexusProcess: ChildProcess;
@@ -17,7 +32,7 @@ describe('Ultimate Terminal E2E', () => {
   let clientSocket: any;
 
   beforeAll(async () => {
-    await fs.rm(path.resolve(__dirname, '..', '.qodo'), { force: true, recursive: true });
+    await fs.rm(DATA_DIR, { force: true, recursive: true });
 
     nexusProcess = spawn('npx', ['ts-node', 'nexus/src/index.ts'], {
       env: {
@@ -26,13 +41,14 @@ describe('Ultimate Terminal E2E', () => {
         NEXUS_JWT_SECRET: JWT_SECRET,
         ADMIN_PASSWORD,
         WORKER_TOKEN,
-        CLIENT_ORIGIN: '*'
+        CLIENT_ORIGIN: '*',
+        NEXUS_DATA_DIR: DATA_DIR
       },
       cwd: path.resolve(__dirname, '..'),
       stdio: 'pipe'
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await waitForServer(NEXUS_URL);
 
     workerProcess = spawn('npx', ['ts-node', 'worker/src/index.ts'], {
       env: { ...process.env, NEXUS_URL, WORKER_NAME: 'Test-Worker', WORKER_TOKEN },
@@ -57,6 +73,9 @@ describe('Ultimate Terminal E2E', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: ADMIN_PASSWORD })
     });
+    if (!login.ok) {
+      throw new Error(`Login failed: ${login.status}`);
+    }
     const { token } = await login.json();
 
     return new Promise<void>((resolve, reject) => {
@@ -78,7 +97,7 @@ describe('Ultimate Terminal E2E', () => {
         }
       });
     });
-  });
+  }, 15000);
 
   it('should execute a command and return PTY output', async () => {
     return new Promise<void>((resolve, reject) => {
@@ -102,5 +121,5 @@ describe('Ultimate Terminal E2E', () => {
         });
       });
     });
-  }, 10000);
+  }, 15000);
 });

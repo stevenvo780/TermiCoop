@@ -32,6 +32,7 @@ import * as pty from 'node-pty';
 
 const NEXUS_URL = process.env.NEXUS_URL || 'http://localhost:3002';
 const API_KEY = process.env.API_KEY || process.env.WORKER_TOKEN || ''; 
+const WORKER_NAME = process.env.WORKER_NAME || os.hostname();
 const HEARTBEAT_MS = Number(process.env.WORKER_HEARTBEAT_MS || 5000);
 const AUTO_RESTART_SHELL = process.env.AUTO_RESTART_SHELL !== 'false';
 
@@ -78,7 +79,7 @@ let heartbeatInterval: NodeJS.Timeout | null = null;
 function connect() {
   socket = io(NEXUS_URL, {
     reconnection: false,
-    auth: { type: 'worker', apiKey: API_KEY }
+    auth: { type: 'worker', apiKey: API_KEY, workerName: WORKER_NAME }
   });
 
   socket.on('connect', () => {
@@ -283,7 +284,8 @@ function createShellForSession(
   let shellArgs: string[] = [];
   let shellEnv: Record<string, string | undefined>;
   let shellCwd: string;
-  if (targetUser) {
+  const canSu = typeof process.getuid === 'function' && process.getuid() === 0;
+  if (targetUser && canSu) {
     shellCmd = '/bin/su';
     shellArgs = ['-l', targetUser.username, '-s', targetUser.shell];
     shellCwd = targetUser.home;
@@ -298,10 +300,10 @@ function createShellForSession(
   } else {
     const shells = ['/usr/bin/zsh', '/bin/zsh', '/usr/bin/bash', '/bin/bash', '/bin/sh'];
     shellCmd = shells.find(s => fs.existsSync(s)) || 'bash';
-    shellCwd = process.env.HOME || '/tmp';
+    shellCwd = (targetUser?.home) || process.env.HOME || '/tmp';
     shellEnv = {
       PATH: process.env.PATH,
-      HOME: process.env.HOME,
+      HOME: targetUser?.home || process.env.HOME,
       LANG: process.env.LANG || 'en_US.UTF-8',
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor'

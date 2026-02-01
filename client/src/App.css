@@ -389,7 +389,7 @@
   background: #0c1117;
   border: 1px solid #1f1f1f;
   border-radius: 6px;
-  padding: 8px;
+  padding: 12px 12px 42px 12px;
   display: grid;
   gap: 6px;
   cursor: pointer;
@@ -444,50 +444,50 @@
   opacity: 0.6;
 }
 
-.add-session-btn {
+.worker-actions {
   position: absolute;
-  top: 6px;
-  right: 32px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.worker-actions button {
   background: transparent;
   border: none;
-  color: #4ade80;
   cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: bold;
-  padding: 0 4px;
+  padding: 4px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .delete-worker-btn {
-  position: absolute;
-  top: 6px;
-  right: 58px;
-  background: transparent;
-  border: none;
   color: #f56565;
-  cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .delete-worker-btn:hover {
   color: #fc8181;
-  transform: scale(1.1);
+  transform: scale(1.05);
+}
+
+.add-session-btn {
+  color: #4ade80;
+  font-size: 1.1rem;
+  font-weight: bold;
 }
 
 .add-session-btn:hover {
   color: #86efac;
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .tag-edit-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: transparent;
-  border: none;
   color: #7da5d7;
-  cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .tag-edit-btn:hover {
@@ -973,6 +973,69 @@
 .modal-header h3 {
   margin: 0;
   font-size: 1.1rem;
+}
+
+.dialog-modal {
+  max-width: 520px;
+  color: #e7e7e7;
+}
+
+.dialog-modal.danger {
+  border-color: #f56565;
+  box-shadow: 0 20px 60px rgba(245, 101, 101, 0.15);
+}
+
+.dialog-body {
+  margin: 6px 0 2px;
+}
+
+.dialog-message {
+  margin: 0;
+  color: #b7c2d0;
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.dialog-btn {
+  border: 1px solid transparent;
+  background: #166fe5;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.dialog-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(22, 111, 229, 0.22);
+}
+
+.dialog-btn.ghost {
+  background: transparent;
+  color: #9fb3c8;
+  border-color: #243447;
+}
+
+.dialog-btn.danger {
+  background: #f56565;
+  color: #fff;
+  border-color: #f56565;
+}
+
+.dialog-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .close-btn {

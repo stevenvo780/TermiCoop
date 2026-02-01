@@ -84,6 +84,10 @@ export class WorkerModel {
       .run(status, Date.now(), id);
   }
 
+  static updateName(id: string, name: string) {
+    db.prepare('UPDATE workers SET name = ? WHERE id = ?').run(name, id);
+  }
+
   static delete(id: string) {
     db.prepare('DELETE FROM worker_shares WHERE worker_id = ?').run(id);
     db.prepare('DELETE FROM workers WHERE id = ?').run(id);

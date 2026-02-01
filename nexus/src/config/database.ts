@@ -2,7 +2,8 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-const dataDir = path.resolve(process.cwd(), '.qodo');
+const customDataDir = (process.env.NEXUS_DATA_DIR || '').trim();
+const dataDir = customDataDir ? path.resolve(customDataDir) : path.resolve(process.cwd(), '.qodo');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const dbPath = path.join(dataDir, 'nexus.db');

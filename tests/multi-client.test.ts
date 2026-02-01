@@ -10,6 +10,21 @@ const NEXUS_URL = `http://localhost:${NEXUS_PORT}`;
 const ADMIN_PASSWORD = 'test-pass-multi-456';
 const WORKER_TOKEN = 'worker-token-test-multi';
 const JWT_SECRET = 'test-secret-token-multi';
+const DATA_DIR = path.resolve(__dirname, '..', `.qodo-${NEXUS_PORT}`);
+
+async function waitForServer(url: string, timeoutMs = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${url}/api/auth/status`);
+      if (res.ok) return;
+    } catch (e) {
+      // keep trying
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error(`Server at ${url} did not become ready`);
+}
 
 describe('Multiple Clients - Independent Terminal Views', () => {
   let nexusProcess: ChildProcess;
@@ -19,7 +34,7 @@ describe('Multiple Clients - Independent Terminal Views', () => {
   let token: string;
 
   beforeAll(async () => {
-    await fs.rm(path.resolve(__dirname, '..', '.qodo'), { force: true, recursive: true });
+    await fs.rm(DATA_DIR, { force: true, recursive: true });
 
     nexusProcess = spawn('npx', ['ts-node', 'nexus/src/index.ts'], {
       env: {
@@ -28,13 +43,14 @@ describe('Multiple Clients - Independent Terminal Views', () => {
         NEXUS_JWT_SECRET: JWT_SECRET,
         ADMIN_PASSWORD,
         WORKER_TOKEN,
-        CLIENT_ORIGIN: '*'
+        CLIENT_ORIGIN: '*',
+        NEXUS_DATA_DIR: DATA_DIR
       },
       cwd: path.resolve(__dirname, '..'),
       stdio: 'pipe'
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await waitForServer(NEXUS_URL);
 
     workerProcess = spawn('npx', ['ts-node', 'worker/src/index.ts'], {
       env: { ...process.env, NEXUS_URL, WORKER_NAME: 'Test-Multi-Worker', WORKER_TOKEN },

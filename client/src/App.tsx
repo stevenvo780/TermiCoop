@@ -45,6 +45,22 @@ interface CommandSnippet {
   command: string;
 }
 
+type DialogTone = 'info' | 'danger';
+type DialogActionVariant = 'primary' | 'ghost' | 'danger';
+
+interface DialogAction {
+  label: string;
+  variant?: DialogActionVariant;
+  onClick?: () => void | Promise<void>;
+}
+
+interface DialogState {
+  title: string;
+  message: string;
+  tone?: DialogTone;
+  actions?: DialogAction[];
+}
+
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
@@ -99,6 +115,8 @@ function App() {
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
   const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
   const [installToken, setInstallToken] = useState<string>('TU_WORKER_TOKEN');
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [dialogLoading, setDialogLoading] = useState<boolean>(false);
   
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -141,6 +159,33 @@ function App() {
       persistTimerRef.current = null;
       persistSessions();
     }, 800);
+  };
+
+  const closeDialog = () => {
+    if (dialogLoading) return;
+    setDialog(null);
+  };
+
+  const openDialog = (state: DialogState) => {
+    setDialog(state);
+    setDialogLoading(false);
+  };
+
+  const handleDialogAction = async (action: DialogAction) => {
+    if (dialogLoading) return;
+    if (!action.onClick) {
+      closeDialog();
+      return;
+    }
+    try {
+      const result = action.onClick();
+      if (result instanceof Promise) {
+        setDialogLoading(true);
+        await result;
+      }
+    } finally {
+      setDialogLoading(false);
+    }
   };
 
   const persistSessions = () => {
@@ -864,9 +909,9 @@ function App() {
     return createNewSession(worker);
   };
 
-  const deleteWorker = async (workerId: string) => {
+  const performDeleteWorker = async (workerId: string) => {
     if (!token) return;
-    if (!confirm('¿Seguro que deseas eliminar este worker? Esta acción no se puede deshacer.')) return;
+    setDialogLoading(true);
     try {
       const res = await fetch(`${NEXUS_URL}/api/workers/${workerId}`, {
         method: 'DELETE',
@@ -877,15 +922,40 @@ function App() {
       if (res.ok) {
         setWorkers((prev) => prev.filter((w) => w.id !== workerId));
         workersRef.current = workersRef.current.filter((w) => w.id !== workerId);
-        setTagModalWorker(null);
-      } else {
-        const err = await res.json();
-        alert('Error eliminando worker: ' + (err.error || 'Desconocido'));
+        setTagModalWorker((prev) => (prev?.id === workerId ? null : prev));
+        closeDialog();
+        return;
       }
+      const err = await res.json();
+      openDialog({
+        title: 'No se pudo eliminar el worker',
+        message: err.error ? String(err.error) : 'Error desconocido al eliminar el worker.',
+        tone: 'danger',
+        actions: [{ label: 'Cerrar', variant: 'primary', onClick: closeDialog }],
+      });
     } catch (error) {
       console.error('Failed to delete worker:', error);
-      alert('Error de red al eliminar worker');
+      openDialog({
+        title: 'Error de red',
+        message: 'No se pudo eliminar el worker. Verifica tu conexion e intenta de nuevo.',
+        tone: 'danger',
+        actions: [{ label: 'Cerrar', variant: 'primary', onClick: closeDialog }],
+      });
+    } finally {
+      setDialogLoading(false);
     }
+  };
+
+  const confirmDeleteWorker = (worker: Worker) => {
+    openDialog({
+      title: 'Eliminar worker',
+      message: `¿Seguro que deseas eliminar ${worker.name}? Esta acción no se puede deshacer.`,
+      tone: 'danger',
+      actions: [
+        { label: 'Cancelar', variant: 'ghost', onClick: closeDialog },
+        { label: 'Eliminar', variant: 'danger', onClick: () => performDeleteWorker(worker.id) },
+      ],
+    });
   };
 
   const focusWorkerSession = (workerId: string) => {
@@ -928,7 +998,11 @@ function App() {
 
   const handleInstallPWA = async () => {
     if (!installPrompt) {
-      alert('La instalacion como PWA no esta disponible en este dispositivo/navegador.');
+      openDialog({
+        title: 'PWA no disponible',
+        message: 'La instalacion como PWA no esta disponible en este dispositivo o navegador.',
+        actions: [{ label: 'Entendido', variant: 'primary', onClick: closeDialog }],
+      });
       return;
     }
     try {
@@ -1373,7 +1447,12 @@ function App() {
       if(!res.ok) throw new Error(data.error);
       setCreatedWorker(data);
     } catch(err:any) {
-      alert('Error creating worker: ' + err.message);
+      openDialog({
+        title: 'No se pudo crear el worker',
+        message: err?.message || 'Ocurrio un error al crear el worker.',
+        tone: 'danger',
+        actions: [{ label: 'Cerrar', variant: 'primary', onClick: closeDialog }],
+      });
     } finally {
       setBusy(false);
     }
@@ -1422,6 +1501,40 @@ function App() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDialog = () => {
+    if (!dialog) return null;
+    const toneClass = dialog.tone === 'danger' ? 'danger' : 'info';
+    const actions: DialogAction[] = dialog.actions && dialog.actions.length > 0
+      ? dialog.actions
+      : [{ label: 'Cerrar', variant: 'primary', onClick: closeDialog }];
+
+    return (
+      <div className="modal-overlay" onClick={() => !dialogLoading && closeDialog()}>
+        <div className={`modal dialog-modal ${toneClass}`} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>{dialog.title}</h3>
+            <button className="close-btn" onClick={() => !dialogLoading && closeDialog()} aria-label="Cerrar">✕</button>
+          </div>
+          <div className="dialog-body">
+            <p className="dialog-message">{dialog.message}</p>
+          </div>
+          <div className="dialog-actions">
+            {actions.map((action, idx) => (
+              <button
+                key={`${action.label}-${idx}`}
+                className={`dialog-btn ${action.variant || 'primary'}`}
+                onClick={() => handleDialogAction(action)}
+                disabled={dialogLoading}
+              >
+                {dialogLoading && action.variant === 'danger' ? 'Procesando...' : action.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -1607,36 +1720,38 @@ function App() {
                               ))
                             : <span className="tag-chip empty">Sin tags</span>}
                         </div>
-                        <button
-                          className="delete-worker-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteWorker(worker.id);
-                          }}
-                          title="Eliminar worker"
-                        >
-                          🗑
-                        </button>
-                        <button
-                          className="add-session-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            focusOrCreateSession(worker.id);
-                          }}
-                          title="Nueva sesion en este worker"
-                        >
-                          +
-                        </button>
-                        <button
-                          className="tag-edit-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            editWorkerTags(worker);
-                          }}
-                          title="Editar tags"
-                        >
-                          🏷
-                        </button>
+                        <div className="worker-actions">
+                          <button
+                            className="delete-worker-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDeleteWorker(worker);
+                            }}
+                            title="Eliminar worker"
+                          >
+                            🗑
+                          </button>
+                          <button
+                            className="add-session-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              focusOrCreateSession(worker.id);
+                            }}
+                            title="Nueva sesion en este worker"
+                          >
+                            +
+                          </button>
+                          <button
+                            className="tag-edit-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              editWorkerTags(worker);
+                            }}
+                            title="Editar tags"
+                          >
+                            🏷
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1913,6 +2028,7 @@ function App() {
       {renderAddWorkerModal()}
       {renderControls()}
       {renderInstallHelp()}
+      {renderDialog()}
       {showSettings && token && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -1956,7 +2072,7 @@ function App() {
                 {tagModalWorker.status === 'offline' && (
                   <button 
                     className="btn-danger" 
-                    onClick={() => deleteWorker(tagModalWorker.id)}
+                    onClick={() => confirmDeleteWorker(tagModalWorker)}
                   >
                     Eliminar Worker
                   </button>

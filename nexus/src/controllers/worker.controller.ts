@@ -45,6 +45,11 @@ export class WorkerController {
       return;
     }
 
+    if (worker.status === 'online') {
+      res.status(409).json({ error: 'Cannot delete an online worker' });
+      return;
+    }
+
     WorkerModel.delete(id);
     res.json({ success: true });
   }

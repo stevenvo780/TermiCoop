@@ -40,8 +40,21 @@ export class UserModel {
     return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
   }
 
+  static findFirstAdmin(): User | undefined {
+    return db.prepare('SELECT * FROM users WHERE is_admin = 1 ORDER BY id ASC LIMIT 1').get() as User | undefined;
+  }
+
+  static findFirstUser(): User | undefined {
+    return db.prepare('SELECT * FROM users ORDER BY id ASC LIMIT 1').get() as User | undefined;
+  }
+
   static count(): number {
     const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
     return row?.count || 0;
+  }
+
+  static updatePassword(id: number, newPassword: string) {
+    const { hash, salt } = hashPassword(newPassword);
+    db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, id);
   }
 }
