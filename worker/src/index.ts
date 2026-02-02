@@ -11,7 +11,7 @@ const setupNativeModulePaths = () => {
   if (fs.existsSync(systemLibPath)) {
     const Module = require('module');
     const originalResolveFilename = Module._resolveFilename;
-    Module._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+    Module._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
       if (request.includes('pty.node') || request.includes('prebuilds/linux-x64')) {
         const nativePath = path.join(systemLibPath, 'prebuilds/linux-x64/pty.node');
         if (fs.existsSync(nativePath)) {
@@ -28,7 +28,7 @@ setupNativeModulePaths();
 import * as pty from 'node-pty';
 
 const NEXUS_URL = process.env.NEXUS_URL || 'http://localhost:3002';
-const API_KEY = process.env.API_KEY || process.env.WORKER_TOKEN || ''; 
+const API_KEY = process.env.API_KEY || process.env.WORKER_TOKEN || '';
 const WORKER_NAME = process.env.WORKER_NAME || os.hostname();
 const HEARTBEAT_MS = Number(process.env.WORKER_HEARTBEAT_MS || 5000);
 const AUTO_RESTART_SHELL = process.env.AUTO_RESTART_SHELL !== 'false';
@@ -82,7 +82,7 @@ function connect() {
   socket.on('connect', () => {
     console.log('[Worker] Connected to Nexus.');
     retryDelay = 1000;
-    
+
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     heartbeatInterval = setInterval(() => {
       if (socket.connected) {
@@ -113,8 +113,15 @@ function connect() {
       console.log('[Worker] Ignoring execute without sessionId');
       return;
     }
+
+    // Ignore commands for killed sessions
+    if (killedSessions.has(sessionId)) {
+      console.log(`[Worker] Ignoring execute for killed session ${sessionId.slice(-8)}`);
+      return;
+    }
+
     console.log(`[Worker] execute received session=${sessionId} len=${data.command.length}`);
-    
+
     let shell = sessionShells.get(sessionId);
     if (!shell) {
       const dims = sessionDimensions.get(sessionId) || { cols: 80, rows: 30 };
@@ -130,7 +137,7 @@ function connect() {
       console.log(`[Worker] Skipping initial \\n for new shell ${sessionId.slice(-8)}`);
       return;
     }
-    
+
     if (shell) {
       shell.write(data.command);
     }
@@ -139,6 +146,13 @@ function connect() {
   socket.on('resize', (data: { clientId: string; sessionId?: string; cols: number; rows: number }) => {
     const sessionId = normalizeSessionId(data.sessionId);
     if (!sessionId) return;
+
+    // Don't recreate shells for killed sessions
+    if (killedSessions.has(sessionId)) {
+      console.log(`[Worker] Ignoring resize for killed session ${sessionId.slice(-8)}`);
+      return;
+    }
+
     if (!sessionClientViewports.has(sessionId)) {
       sessionClientViewports.set(sessionId, new Map());
     }
@@ -248,7 +262,7 @@ function getTargetUser(): UserInfo | null {
       const uid = parseInt(parts[2]);
       const username = parts[0];
       if (uid >= 1000 && uid < 65534 &&
-          !['nobody', 'nogroup', 'nfsnobody'].includes(username)) {
+        !['nobody', 'nogroup', 'nfsnobody'].includes(username)) {
         return {
           username: parts[0],
           uid,

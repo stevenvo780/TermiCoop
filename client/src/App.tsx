@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { io, Socket } from 'socket.io-client';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { RenameSessionModal } from './components/RenameSessionModal';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
@@ -67,7 +68,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-const NEXUS_URL = import.meta.env.VITE_NEXUS_URL || (import.meta.env.PROD ? '' : 'http://localhost:3002');
+const NEXUS_URL = import.meta.env.VITE_NEXUS_URL || (import.meta.env.PROD ? window.location.origin : 'http://localhost:3002');
 console.log('Using NEXUS_URL:', NEXUS_URL, 'Mode:', import.meta.env.MODE);
 const AUTH_KEY = 'ut-token';
 const LAST_WORKER_KEY = 'ut-last-worker';
@@ -111,6 +112,7 @@ function App() {
   const [commandSnippets, setCommandSnippets] = useState<Record<string, CommandSnippet[]>>({});
   const [tagModalWorker, setTagModalWorker] = useState<Worker | null>(null);
   const [shareModalWorker, setShareModalWorker] = useState<Worker | null>(null);
+  const [installWorkerModal, setInstallWorkerModal] = useState<Worker | null>(null);
   const [tagModalInput, setTagModalInput] = useState<string>('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showDropOverlay, setShowDropOverlay] = useState<boolean>(false);
@@ -372,8 +374,13 @@ function App() {
       createdAt: number;
       lastActiveAt: number;
     }>) => {
+      // Remove confirmed sessions from pending set
       serverSessions.forEach((ss) => {
-        const existsLocally = sessionsRef.current.some((s) => s.id === ss.id);
+        pendingSessionIdsRef.current.delete(ss.id);
+      });
+
+      serverSessions.forEach((ss) => {
+        const existsLocally = sessionsRef.current.some((s) => s.id === ss.id) || pendingSessionIdsRef.current.has(ss.id);
         if (!existsLocally) {
           const worker = workersRef.current.find((w) => normalizeWorkerKey(w.name) === ss.workerKey);
           if (worker) {
@@ -391,13 +398,15 @@ function App() {
         }
       });
       const serverSessionIds = new Set(serverSessions.map((s) => s.id));
-      const sessionsToRemove = sessionsRef.current.filter((s) => !serverSessionIds.has(s.id));
+      // Protect pending sessions from being removed
+      const sessionsToRemove = sessionsRef.current.filter((s) => !serverSessionIds.has(s.id) && !pendingSessionIdsRef.current.has(s.id));
+
       sessionsToRemove.forEach((session) => {
         disposeSession(session);
         delete sessionOutputRef.current[session.id];
       });
       if (sessionsToRemove.length > 0) {
-        setSessions((prev) => prev.filter((s) => serverSessionIds.has(s.id)));
+        setSessions((prev) => prev.filter((s) => serverSessionIds.has(s.id) || pendingSessionIdsRef.current.has(s.id)));
       }
     });
 
@@ -502,7 +511,10 @@ function App() {
     }
   }, [activeSessionId, isRestored, schedulePersistSessions]);
 
+  const pendingSessionIdsRef = useRef<Set<string>>(new Set());
   const prevActiveSessionRef = useRef<string | null>(null);
+
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (prevActiveSessionRef.current && prevActiveSessionRef.current !== activeSessionId && socketRef.current) {
@@ -712,13 +724,57 @@ function App() {
       focus?: boolean;
     },
   ) => {
-    if (!terminalContainerRef.current) return;
+    // === UNIFIED DEDUPLICATION LOGIC ===
     const workerKey = normalizeWorkerKey(worker.name);
+    const creationLockKey = `creating_${workerKey}`;
+
+    // 1. For specific sessionId (from socket/hydration), check if that exact ID exists or is pending
+    if (options?.sessionId) {
+      const exactExists = sessionsRef.current.some((s) => s.id === options.sessionId) ||
+        pendingSessionIdsRef.current.has(options.sessionId);
+      if (exactExists) {
+        console.log(`[createNewSession] Session ${options.sessionId} already exists or pending`);
+        return undefined;
+      }
+      // Add to pending immediately for socket-based dedup
+      pendingSessionIdsRef.current.add(options.sessionId);
+    }
+
+    // 2. For new sessions (clicks), enforce worker-level lock
+    if (!options?.sessionId) {
+      if (pendingSessionIdsRef.current.has(creationLockKey)) {
+        console.log(`[createNewSession] BLOCKED duplicate for worker: ${workerKey}`);
+        return undefined;
+      }
+      pendingSessionIdsRef.current.add(creationLockKey);
+      // Remove lock after 1 second to allow multiple sessions (debounce logic)
+      setTimeout(() => {
+        pendingSessionIdsRef.current.delete(creationLockKey);
+      }, 1000);
+    }
+
+    if (!terminalContainerRef.current) {
+      pendingSessionIdsRef.current.delete(creationLockKey);
+      if (options?.sessionId) pendingSessionIdsRef.current.delete(options.sessionId);
+      return undefined;
+    }
+
     localStorage.setItem(LAST_WORKER_KEY, workerKey);
     lastWorkerRef.current = workerKey;
 
     const sessionId = options?.sessionId || `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
+    // Add session ID to pending for dedup (only for new sessions)
+    if (!options?.sessionId) {
+      pendingSessionIdsRef.current.add(sessionId);
+      // Safety timeout to clean up pending status if server never confirms
+      setTimeout(() => {
+        pendingSessionIdsRef.current.delete(sessionId);
+      }, 10000);
+    }
+
     const displayName = options?.displayName || worker.name;
+
     const createdAt = options?.createdAt || Date.now();
     const lastActiveAt = options?.lastActiveAt || Date.now();
     const container = document.createElement('div');
@@ -797,6 +853,9 @@ function App() {
       sessionOutputRef.current[sessionId] = output;
     }
 
+    // CRITICAL: Update ref IMMEDIATELY so subsequent rapid clicks see the new session
+    sessionsRef.current = [...sessionsRef.current, session];
+
     setSessions(prev => [...prev, session]);
     if (options?.focus !== false) {
       setActiveSessionId(sessionId);
@@ -815,6 +874,13 @@ function App() {
     setTimeout(() => {
       handleResize();
     }, 100);
+
+    // Clear the worker-level creation lock after a delay (allows rapid clicks to be blocked)
+    if (!options?.sessionId) {
+      setTimeout(() => {
+        pendingSessionIdsRef.current.delete(creationLockKey);
+      }, 1000);
+    }
 
     return session;
   }, [getAdaptiveFontSize, normalizeWorkerKey, trackInputForHistory]);
@@ -857,30 +923,66 @@ function App() {
   }, [workers, createNewSession, resolveWorkerForSession]);
 
   const closeSession = (sessionId: string) => {
-    setGridSessionIds((prev) => prev.filter((id) => id !== sessionId));
+    // Find the session to get its workerKey before removing
+    const sessionToClose = sessionsRef.current.find((s) => s.id === sessionId);
+
+    // 1. Update Grid: Replace ID with empty string to preserve slots
+    setGridSessionIds((prev) => prev.map((id) => (id === sessionId ? '' : id)));
+
+    // Clear from pending (both session ID and worker lock)
+    pendingSessionIdsRef.current.delete(sessionId);
+    if (sessionToClose) {
+      pendingSessionIdsRef.current.delete(`creating_${sessionToClose.workerKey}`);
+    }
+
+    // 2. Emit socket event
     if (socketRef.current) {
       socketRef.current.emit('close-session', { sessionId });
     }
 
-    setSessions(prevSessions => {
-      const session = prevSessions.find(s => s.id === sessionId);
-      if (!session) return prevSessions;
-
-      disposeSession(session);
-      delete sessionOutputRef.current[session.id];
-      delete inputBuffersRef.current[session.id];
-      delete escapeInputRef.current[session.id];
-      schedulePersistSessions();
-
-      const newSessions = prevSessions.filter(s => s.id !== sessionId);
-      return newSessions;
+    // 3. Update Sessions State & Cleanup
+    setSessions((prevSessions) => {
+      const session = prevSessions.find((s) => s.id === sessionId);
+      if (session) {
+        // Safe to call here as we are removing it, but better outside. 
+        // However, we need the reference. 
+        // Since this update runs once, we'll keep simple cleanup here
+        // or prioritize reacting to session removal in useEffect.
+        // For IMMEDIATE cleanup of DOM:
+        try {
+          disposeSession(session);
+        } catch (e) {
+          console.error('Error disposing session', e);
+        }
+      }
+      return prevSessions.filter((s) => s.id !== sessionId);
     });
+
+    // 4. Cleanup Refs
+    delete sessionOutputRef.current[sessionId];
+    delete inputBuffersRef.current[sessionId];
+    delete escapeInputRef.current[sessionId];
+
+    // 5. Persist changes
+    schedulePersistSessions();
+
+    // 6. If active, clear selection
+    if (activeSessionId === sessionId) {
+      setActiveSessionId(null);
+    }
   };
 
   const renameSession = (sessionId: string, newName: string) => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) return;
+
     setSessions((prev) =>
-      prev.map((s) => (s.id === sessionId ? { ...s, displayName: newName.trim() } : s))
+      prev.map((s) => (s.id === sessionId ? { ...s, displayName: trimmedName } : s))
     );
+
+    if (socketRef.current) {
+      socketRef.current.emit('rename-session', { sessionId, newName: trimmedName });
+    }
   };
 
   const switchSession = (sessionId: string) => {
@@ -888,10 +990,12 @@ function App() {
   };
 
   const promptRenameSession = (sessionId: string) => {
-    const current = sessionsRef.current.find((s) => s.id === sessionId);
-    const nextName = window.prompt('Nuevo nombre de sesion', current?.displayName || '');
-    if (nextName && nextName.trim()) {
-      renameSession(sessionId, nextName);
+    setRenamingSessionId(sessionId);
+  };
+
+  const handleRenameSave = (newName: string) => {
+    if (renamingSessionId) {
+      renameSession(renamingSessionId, newName);
     }
   };
 
@@ -901,6 +1005,8 @@ function App() {
     const workerKey = normalizeWorkerKey(worker.name);
     localStorage.setItem(LAST_WORKER_KEY, workerKey);
     lastWorkerRef.current = workerKey;
+
+    // createNewSession now handles deduplication internally via pendingSessionIdsRef
     return createNewSession(worker);
   };
 
@@ -961,11 +1067,13 @@ function App() {
     const workerKey = normalizeWorkerKey(worker.name);
     localStorage.setItem(LAST_WORKER_KEY, workerKey);
     lastWorkerRef.current = workerKey;
-    const existing = sessionsRef.current.find((session) => session.workerKey === workerKey);
-    if (existing) {
-      setActiveSessionId(existing.id);
-      return existing;
+    // Check both ref and current state for existing sessions
+    const existingRef = sessionsRef.current.find((session) => session.workerKey === workerKey);
+    if (existingRef) {
+      setActiveSessionId(existingRef.id);
+      return existingRef;
     }
+    // createNewSession now handles deduplication internally
     return createNewSession(worker);
   };
 
@@ -1105,9 +1213,11 @@ function App() {
   const assignGridSlot = useCallback((slotIndex: number, sessionId: string) => {
     if (layoutMode === 'single') setLayoutMode('quad');
     setGridSessionIds((prev) => {
+      // Ensure strictly 4 slots
       const next = [...prev];
       while (next.length < 4) next.push('');
-      for (let i = 0; i < next.length; i += 1) {
+      // Clear ID from other slots if present
+      for (let i = 0; i < 4; i += 1) {
         if (i !== slotIndex && next[i] === sessionId) {
           next[i] = '';
         }
@@ -1313,35 +1423,7 @@ function App() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  useEffect(() => {
-    sessions.forEach((session) => {
-      const container = session.containerRef;
-      if (!container) return;
 
-      let shouldShow = false;
-      let order = 0;
-
-      if (layoutMode === 'single') {
-        shouldShow = session.id === activeSessionId;
-      } else {
-        const index = gridSessionIds.indexOf(session.id);
-        if (index !== -1) {
-          shouldShow = true;
-          order = index;
-        }
-      }
-
-      const display = shouldShow ? 'flex' : 'none';
-      if (container.style.display !== display) {
-        container.style.display = display;
-      }
-
-      if (shouldShow) {
-        container.style.order = order.toString();
-        requestAnimationFrame(() => fitAndResizeSession(session));
-      }
-    });
-  }, [activeSessionId, layoutMode, gridSessionIds, sessions]);
 
   const handleAuth = async (endpoint: 'setup' | 'login', password: string, setupToken?: string) => {
     setBusy(true);
@@ -1585,13 +1667,27 @@ function App() {
               <div className="helper-label">Debian/Ubuntu</div>
               <code className="helper-code">{debCommand.replace(resolvedWorkerToken, tokenValue)}</code>
               <div className="helper-row">
-                <span />
+                <a
+                  href={`${NEXUS_URL}/api/downloads/latest/worker-linux.deb`}
+                  className="mini-btn"
+                  style={{ textDecoration: 'none', display: 'inline-block' }}
+                  download
+                >
+                  ⬇ Descargar .deb
+                </a>
                 {copyButton('deb', 'Copiar', debCommand.replace(resolvedWorkerToken, tokenValue))}
               </div>
               <div className="helper-label" style={{ marginTop: 10 }}>RHEL/CentOS/Fedora</div>
               <code className="helper-code">{rpmCommand.replace(resolvedWorkerToken, tokenValue)}</code>
               <div className="helper-row">
-                <span />
+                <a
+                  href={`${NEXUS_URL}/api/downloads/latest/worker-linux.rpm`}
+                  className="mini-btn"
+                  style={{ textDecoration: 'none', display: 'inline-block' }}
+                  download
+                >
+                  ⬇ Descargar .rpm
+                </a>
                 {copyButton('rpm', 'Copiar', rpmCommand.replace(resolvedWorkerToken, tokenValue))}
               </div>
             </div>
@@ -1759,6 +1855,19 @@ function App() {
                           >
                             🔗
                           </button>
+                          {worker.status === 'offline' && worker.api_key && (
+                            <button
+                              className="install-worker-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInstallWorkerModal(worker);
+                              }}
+                              title="Ver instrucciones de instalación"
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2em' }}
+                            >
+                              📥
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -2090,6 +2199,60 @@ function App() {
         </div>
       )}
 
+      {installWorkerModal && (
+        <div className="modal-overlay" onClick={() => setInstallWorkerModal(null)}>
+          <div className="modal install-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Conectar Worker: {installWorkerModal.name}</h3>
+              <button className="close-btn" onClick={() => setInstallWorkerModal(null)}>✕</button>
+            </div>
+            <div className="modal-body install-grid">
+              <div className="helper-card">
+                <p style={{ marginTop: 0, color: '#ff9800' }}>
+                  ⚠️ Este worker está <strong>desconectado</strong>. Ejecuta el siguiente comando en el servidor para conectarlo.
+                </p>
+                <div className="helper-label">Token/API Key</div>
+                <code className="helper-code" style={{ wordBreak: 'break-all' }}>{installWorkerModal.api_key}</code>
+              </div>
+              <div className="helper-card">
+                <div className="helper-label">Debian/Ubuntu</div>
+                <code className="helper-code">{`curl -fsSL ${NEXUS_URL}/install.sh | NEXUS_URL=${NEXUS_URL} bash -s -- ${installWorkerModal.api_key}`}</code>
+                <div className="helper-row">
+                  <a
+                    href={`${NEXUS_URL}/api/downloads/latest/worker-linux.deb`}
+                    className="mini-btn"
+                    style={{ textDecoration: 'none', display: 'inline-block' }}
+                    download
+                  >
+                    ⬇ Descargar .deb
+                  </a>
+                  <button
+                    className="mini-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`curl -fsSL ${NEXUS_URL}/install.sh | NEXUS_URL=${NEXUS_URL} bash -s -- ${installWorkerModal.api_key}`);
+                    }}
+                  >
+                    Copiar
+                  </button>
+                </div>
+                <div className="helper-label" style={{ marginTop: 10 }}>RHEL/CentOS/Fedora</div>
+                <code className="helper-code">{`curl -fsSL ${NEXUS_URL}/api/downloads/latest/worker-linux.rpm -o worker.rpm && sudo rpm -Uvh worker.rpm`}</code>
+                <div className="helper-row">
+                  <a
+                    href={`${NEXUS_URL}/api/downloads/latest/worker-linux.rpm`}
+                    className="mini-btn"
+                    style={{ textDecoration: 'none', display: 'inline-block' }}
+                    download
+                  >
+                    ⬇ Descargar .rpm
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {
         shareModalWorker && (
           <ShareModal
@@ -2196,6 +2359,14 @@ function App() {
           )}
         </div>
       </div>
+      {renamingSessionId && (
+        <RenameSessionModal
+          isOpen={!!renamingSessionId}
+          initialName={sessions.find(s => s.id === renamingSessionId)?.displayName || ''}
+          onClose={() => setRenamingSessionId(null)}
+          onSave={handleRenameSave}
+        />
+      )}
     </div >
   );
 }

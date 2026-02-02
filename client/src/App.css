@@ -387,7 +387,8 @@
 
 .worker-item {
   background: #0c1117;
-  border: 1px solid #1f1f1f;
+  border: 1px solid #1a3d2a;
+  border-left: 3px solid #22c55e;
   border-radius: 6px;
   padding: 12px 12px 42px 12px;
   display: grid;
@@ -398,13 +399,14 @@
 }
 
 .worker-item:hover {
-  border-color: #2a3f5f;
-  background: #121820;
+  border-color: #22c55e;
+  background: #0f1a15;
 }
 
 .worker-item.offline {
   border-color: #3b2626;
-  background: #151013;
+  border-left: 3px solid #6b3030;
+  background: #120d0d;
 }
 
 .worker-main {
