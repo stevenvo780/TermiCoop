@@ -20,7 +20,7 @@ export function SessionList({ onCloseSession, onDragStart, onDragEnd }: SessionL
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
   const offlineSessionIds = useAppSelector((state) => state.sessions.offlineSessionIds);
   const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
-  const layoutMode = useAppSelector((state) => state.ui.layoutMode);
+  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
 
   const handleSwitchSession = (sessionId: string) => {
     dispatch(setActiveSession(sessionId));

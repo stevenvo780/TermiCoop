@@ -15,6 +15,9 @@ const SESSION_OUTPUT_KEY = 'ut-session-output-v1';
 const ACTIVE_SESSION_KEY = 'ut-active-session';
 const GRID_SLOTS_KEY = 'ut-grid-slots-v1';
 const LAST_WORKER_KEY = 'ut-last-worker';
+const LAYOUT_MODE_KEY = 'ut-layout-mode';
+
+export type LayoutMode = 'single' | 'split-vertical' | 'quad';
 
 const parseStored = <T,>(value: string | null, fallback: T): T => {
   if (!value) return fallback;
@@ -34,6 +37,7 @@ interface SessionsState {
   lastWorkerKey: string | null;
   isRestored: boolean;
   draggingSessionId: string | null;
+  layoutMode: LayoutMode;
 }
 
 const initialState: SessionsState = {
@@ -45,6 +49,7 @@ const initialState: SessionsState = {
   lastWorkerKey: localStorage.getItem(LAST_WORKER_KEY),
   isRestored: false,
   draggingSessionId: null,
+  layoutMode: (localStorage.getItem(LAYOUT_MODE_KEY) as LayoutMode) || 'single',
 };
 
 const sessionsSlice = createSlice({
@@ -146,6 +151,10 @@ const sessionsSlice = createSlice({
       state.sessions = action.payload;
       localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
     },
+    setLayoutMode: (state, action: PayloadAction<LayoutMode>) => {
+      state.layoutMode = action.payload;
+      localStorage.setItem(LAYOUT_MODE_KEY, action.payload);
+    },
   },
 });
 
@@ -164,6 +173,7 @@ export const {
   setDraggingSessionId,
   clearAllSessions,
   setSessions,
+  setLayoutMode,
 } = sessionsSlice.actions;
 
 export default sessionsSlice.reducer;

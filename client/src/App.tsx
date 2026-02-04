@@ -76,7 +76,7 @@ function AppContent() {
   const workers = useAppSelector((state) => state.workers.workers);
   const offlineSessionIds = useAppSelector((state) => state.sessions.offlineSessionIds);
   const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
-  const layoutMode = useAppSelector((state) => state.ui.layoutMode);
+  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const renamingSessionId = useAppSelector((state) => state.ui.renamingSessionId);
   const shareModalWorker = useAppSelector((state) => state.ui.shareModalWorker);
   const showWorkerModal = useAppSelector((state) => state.ui.showWorkerModal);

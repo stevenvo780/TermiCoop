@@ -15,7 +15,7 @@ interface TerminalGridProps {
 
 export function TerminalGrid({ containerRef }: TerminalGridProps) {
   const dispatch = useAppDispatch();
-  const layoutMode = useAppSelector((state) => state.ui.layoutMode);
+  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const sessions = useAppSelector((state) => state.sessions.sessions);
   const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);

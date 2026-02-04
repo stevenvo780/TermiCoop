@@ -1,7 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Worker } from './workersSlice';
 
-export type LayoutMode = 'single' | 'split-vertical' | 'quad';
 export type DialogTone = 'info' | 'danger';
 export type DialogActionVariant = 'primary' | 'ghost' | 'danger';
 
@@ -19,7 +18,6 @@ export interface DialogState {
 }
 
 interface UIState {
-  layoutMode: LayoutMode;
   sidebarCollapsed: boolean;
   isFullscreen: boolean;
   showSettings: boolean;
@@ -38,7 +36,6 @@ interface UIState {
 }
 
 const initialState: UIState = {
-  layoutMode: 'single',
   sidebarCollapsed: false,
   isFullscreen: false,
   showSettings: false,
@@ -60,9 +57,6 @@ const uiSlice = createSlice({
   name: 'ui',
   initialState,
   reducers: {
-    setLayoutMode: (state, action: PayloadAction<LayoutMode>) => {
-      state.layoutMode = action.payload;
-    },
     toggleSidebar: (state) => {
       state.sidebarCollapsed = !state.sidebarCollapsed;
     },
@@ -120,7 +114,6 @@ const uiSlice = createSlice({
 });
 
 export const {
-  setLayoutMode,
   toggleSidebar,
   setSidebarCollapsed,
   setIsFullscreen,
