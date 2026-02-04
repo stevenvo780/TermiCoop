@@ -76,12 +76,21 @@
   background: transparent;
   border: none;
   color: #6b7c93;
-  font-size: 1rem;
   padding: 6px;
   cursor: pointer;
   transition: all 150ms ease;
   line-height: 1;
   border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-session-btn svg,
+.rename-session-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
 }
 
 .rename-session-btn {

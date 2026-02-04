@@ -183,12 +183,20 @@
   background: transparent;
   border: 1px solid #243447;
   color: #9fb3c8;
-  font-size: 1.2rem;
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   transition: all 150ms ease;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
 }
 
 .collapse-btn:hover {
@@ -700,21 +708,8 @@
 }
 
 .terminal-container.grid-layout {
-  display: grid;
-  gap: 4px;
-  padding: 4px;
-}
-
-.terminal-container.layout-split-vertical {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: min-content 1fr;
-}
-
-.terminal-container.layout-quad {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: min-content 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
 }
 
 .terminal-container.grid-layout .terminal-wrapper {
@@ -732,8 +727,6 @@
 }
 
 .terminal-toolbar {
-  grid-column: 1 / -1;
-  grid-row: 1;
   padding: 8px 10px;
   border-bottom: 1px solid #1f1f1f;
   display: flex;
@@ -770,7 +763,7 @@
 .layout-icon-btn svg {
   width: 16px;
   height: 16px;
-  fill: currentColor;
+  stroke-width: 1.8;
 }
 
 .layout-icon-btn:hover {
@@ -1039,13 +1032,21 @@
   background: transparent;
   border: none;
   color: #9fb3c8;
-  font-size: 1.2rem;
   cursor: pointer;
   padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {
   color: #fff;
+}
+
+.close-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
 }
 
 .auth-panel {

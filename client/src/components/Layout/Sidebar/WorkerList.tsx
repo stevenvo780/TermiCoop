@@ -10,6 +10,7 @@ import {
   openDialog,
 } from '../../../store';
 import type { Worker } from '../../../store/slices/workersSlice';
+import { Download, Link, Plus, Trash2 } from 'lucide-react';
 import './WorkerList.css';
 
 interface WorkerListProps {
@@ -114,7 +115,7 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
                     }}
                     title="Eliminar worker"
                   >
-                    🗑
+                    <Trash2 />
                   </button>
                   <button
                     className="add-session-btn"
@@ -124,7 +125,7 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
                     }}
                     title="Nueva sesión en este worker"
                   >
-                    +
+                    <Plus />
                   </button>
                   <button
                     className="share-worker-btn"
@@ -134,7 +135,7 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
                     }}
                     title="Compartir worker"
                   >
-                    🔗
+                    <Link />
                   </button>
                   {worker.status === 'offline' && worker.api_key && (
                     <button
@@ -145,7 +146,7 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
                       }}
                       title="Ver instrucciones de instalación"
                     >
-                      📥
+                      <Download />
                     </button>
                   )}
                 </div>

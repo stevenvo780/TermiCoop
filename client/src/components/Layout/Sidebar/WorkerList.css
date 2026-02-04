@@ -150,7 +150,12 @@
   justify-content: center;
   border-radius: 6px;
   transition: all 150ms ease;
-  font-size: 0.9rem;
+}
+
+.worker-actions button svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
 }
 
 .delete-worker-btn {
@@ -164,8 +169,6 @@
 
 .add-session-btn {
   color: #4ade80;
-  font-size: 1.1rem !important;
-  font-weight: bold;
 }
 
 .add-session-btn:hover {

@@ -23,8 +23,6 @@ import {
   openDialog,
   closeDialog,
   setShowChangePasswordModal,
-  setShowSettings,
-  setShowUserMenu,
   addCommandToHistory,
 } from './store';
 import type { Worker } from './store/slices/workersSlice';
@@ -81,7 +79,6 @@ function AppContent() {
   const showWorkerModal = useAppSelector((state) => state.ui.showWorkerModal);
   const editingWorker = useAppSelector((state) => state.ui.editingWorker);
   const showChangePasswordModal = useAppSelector((state) => state.ui.showChangePasswordModal);
-  const showSettings = useAppSelector((state) => state.ui.showSettings);
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
@@ -560,21 +557,6 @@ function AppContent() {
         />
       )}
 
-      {showSettings && (
-        <div className="modal-overlay" onClick={() => dispatch(setShowSettings(false))}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Configuración</h3>
-              <button className="close-btn" onClick={() => dispatch(setShowSettings(false))}>✕</button>
-            </div>
-            <div className="modal-body">
-              <button onClick={() => { dispatch(clearAuth()); dispatch(setShowUserMenu(false)); }}>
-                Cerrar Sesión
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

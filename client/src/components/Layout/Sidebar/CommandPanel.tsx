@@ -7,6 +7,7 @@ import {
   selectHistoryForWorker,
   selectSnippetsForWorker,
 } from '../../../store';
+import { Play, Star, X } from 'lucide-react';
 import './CommandPanel.css';
 
 interface CommandPanelProps {
@@ -117,7 +118,7 @@ export function CommandPanel({ onExecuteCommand }: CommandPanelProps) {
                   disabled={isOffline}
                   title="Ejecutar"
                 >
-                  ▶
+                  <Play />
                 </button>
                 <div className="command-text" title={cmd}>{cmd}</div>
                 <button
@@ -126,7 +127,7 @@ export function CommandPanel({ onExecuteCommand }: CommandPanelProps) {
                   disabled={isOffline}
                   title="Guardar como snippet"
                 >
-                  ☆
+                  <Star />
                 </button>
               </div>
             ))}
@@ -157,7 +158,7 @@ export function CommandPanel({ onExecuteCommand }: CommandPanelProps) {
                   disabled={isOffline}
                   title="Ejecutar"
                 >
-                  ▶
+                  <Play />
                 </button>
                 <div className="command-text">
                   <div className="command-title">{snippet.label}</div>
@@ -169,7 +170,7 @@ export function CommandPanel({ onExecuteCommand }: CommandPanelProps) {
                   disabled={isOffline}
                   title="Eliminar"
                 >
-                  ✕
+                  <X />
                 </button>
               </div>
             ))}

@@ -17,11 +17,16 @@
 }
 
 .brand-icon {
-  font-size: 1.4rem;
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #93c5fd;
+}
+
+.brand-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
 }
 
 .control-group {
@@ -80,7 +85,6 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(36, 52, 71, 0.5);
   color: #9fb3c8;
-  font-size: 0.9rem;
   width: 28px;
   height: 28px;
   display: flex;
@@ -89,6 +93,12 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 200ms ease;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
 }
 
 .icon-btn:hover:not(:disabled) {
@@ -125,6 +135,21 @@
   transition: all 200ms ease;
 }
 
+.ghost-btn.icon-only {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ghost-btn.icon-only svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
 .ghost-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(96, 165, 250, 0.4);
@@ -145,7 +170,6 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(36, 52, 71, 0.5);
   color: #9fb3c8;
-  font-size: 0.9rem;
   width: 28px;
   height: 28px;
   display: flex;
@@ -160,6 +184,12 @@
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   transform: rotate(45deg);
+}
+
+.settings-btn.active {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #e7e7e7;
 }
 
 .resume-btn {
@@ -257,6 +287,10 @@
   position: relative;
 }
 
+.settings-menu-container {
+  position: relative;
+}
+
 .user-menu-btn {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(36, 52, 71, 0.6);
@@ -288,6 +322,10 @@
   z-index: 99999;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
   animation: slideDown 200ms ease;
+}
+
+.settings-menu-dropdown {
+  min-width: 220px;
 }
 
 @keyframes slideDown {
@@ -326,7 +364,6 @@
 }
 
 .user-menu-item {
-  display: block;
   width: 100%;
   padding: 10px 12px;
   background: transparent;
@@ -337,6 +374,25 @@
   border-radius: 8px;
   transition: all 150ms ease;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.user-menu-item:disabled:hover {
+  background: transparent;
+  color: #9fb3c8;
+}
+
+.user-menu-item .menu-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
 }
 
 .user-menu-item:hover {

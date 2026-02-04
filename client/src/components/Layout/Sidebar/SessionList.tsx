@@ -6,6 +6,7 @@ import {
   setLayoutMode,
 } from '../../../store';
 import type { DragEvent } from 'react';
+import { Grid2x2, Pencil, X } from 'lucide-react';
 import './SessionList.css';
 
 interface SessionListProps {
@@ -75,7 +76,7 @@ export function SessionList({ onCloseSession, onDragStart, onDragEnd }: SessionL
             }}
             title="Enviar al grid"
           >
-            ⬒
+            <Grid2x2 />
           </button>
           <button
             className="rename-session-btn"
@@ -85,7 +86,7 @@ export function SessionList({ onCloseSession, onDragStart, onDragEnd }: SessionL
             }}
             title="Renombrar sesión"
           >
-            ✎
+            <Pencil />
           </button>
           <button
             className="close-session-btn"
@@ -95,7 +96,7 @@ export function SessionList({ onCloseSession, onDragStart, onDragEnd }: SessionL
             }}
             title="Cerrar sesión"
           >
-            ✕
+            <X />
           </button>
         </div>
       ))}

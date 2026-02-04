@@ -1,12 +1,27 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
+  clearAuth,
   setShowInstallModal,
+  setShowChangePasswordModal,
   setShowSettings,
   setShowUserMenu,
   setShowWorkerModal,
   setEditingWorker,
 } from '../../store';
 import type { Worker } from '../../store/slices/workersSlice';
+import {
+  Download,
+  KeyRound,
+  LogOut,
+  Maximize2,
+  Minimize2,
+  Play,
+  Plus,
+  Settings,
+  Smartphone,
+  User,
+  Hexagon,
+} from 'lucide-react';
 import './TopBar.css';
 
 interface TopBarProps {
@@ -33,6 +48,7 @@ export function TopBar({
   const token = useAppSelector((state) => state.auth.token);
   const showUserMenu = useAppSelector((state) => state.ui.showUserMenu);
   const isFullscreen = useAppSelector((state) => state.ui.isFullscreen);
+  const showSettingsMenu = useAppSelector((state) => state.ui.showSettings);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeWorkerId = activeSession?.workerId || '';
@@ -48,10 +64,52 @@ export function TopBar({
     dispatch(setShowWorkerModal(true));
   };
 
+  const handleToggleUserMenu = () => {
+    dispatch(setShowUserMenu(!showUserMenu));
+    if (!showUserMenu) {
+      dispatch(setShowSettings(false));
+    }
+  };
+
+  const handleToggleSettingsMenu = () => {
+    dispatch(setShowSettings(!showSettingsMenu));
+    if (!showSettingsMenu) {
+      dispatch(setShowUserMenu(false));
+    }
+  };
+
+  const handleInstallWorker = () => {
+    dispatch(setShowInstallModal(true));
+    dispatch(setShowSettings(false));
+  };
+
+  const handleFullscreenToggle = () => {
+    onFullscreen();
+    dispatch(setShowSettings(false));
+  };
+
+  const handleInstallPWA = () => {
+    if (!installPromptAvailable) return;
+    onInstallPWA();
+    dispatch(setShowSettings(false));
+  };
+
+  const handleChangePassword = () => {
+    dispatch(setShowChangePasswordModal(true));
+    dispatch(setShowUserMenu(false));
+  };
+
+  const handleLogout = () => {
+    dispatch(clearAuth());
+    dispatch(setShowUserMenu(false));
+  };
+
   return (
     <div className="topbar">
       <div className="brand">
-        <span className="brand-icon">⬡</span>
+        <span className="brand-icon">
+          <Hexagon />
+        </span>
       </div>
 
       <div className="control-group">
@@ -69,12 +127,11 @@ export function TopBar({
           ))}
         </select>
         <button
-          className="ghost-btn"
+          className="ghost-btn icon-only"
           title="Crear nuevo worker"
           onClick={handleCreateWorker}
-          style={{ marginLeft: '5px', padding: '0 8px', fontSize: '1.2em' }}
         >
-          +
+          <Plus />
         </button>
       </div>
 
@@ -85,35 +142,11 @@ export function TopBar({
       </div>
 
       <div className="topbar-right">
-        <button
-          className="icon-btn"
-          onClick={() => dispatch(setShowInstallModal(true))}
-          title="Instalar worker"
-        >
-          ⬇
-        </button>
         {activeSessionId && (
           <button className="icon-btn resume-btn" onClick={onResume} title="Reanudar sesión activa">
-            ▶
+            <Play />
           </button>
         )}
-
-        <button
-          className="icon-btn"
-          onClick={onFullscreen}
-          title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-        >
-          {isFullscreen ? '⤢' : '⛶'}
-        </button>
-
-        <button
-          className="icon-btn"
-          onClick={onInstallPWA}
-          disabled={!installPromptAvailable}
-          title={installPromptAvailable ? 'Descargar como PWA' : 'PWA no disponible'}
-        >
-          📱
-        </button>
 
         <div className={`status-dot ${connectionState === 'connected' ? 'ok' :
           connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
@@ -128,10 +161,10 @@ export function TopBar({
           <div className="user-menu-container">
             <button
               className="icon-btn user-btn"
-              onClick={() => dispatch(setShowUserMenu(!showUserMenu))}
+              onClick={handleToggleUserMenu}
               title={currentUser.username}
             >
-              👤
+              <User />
             </button>
             {showUserMenu && (
               <div className="user-menu-dropdown">
@@ -141,15 +174,14 @@ export function TopBar({
                 </div>
                 <button
                   className="user-menu-item"
-                  onClick={() => {
-                    dispatch(setShowUserMenu(false));
-                    // Will be handled by parent
-                  }}
+                  onClick={handleChangePassword}
                 >
-                  🔑 Cambiar Contraseña
+                  <KeyRound className="menu-icon" />
+                  <span>Cambiar Contraseña</span>
                 </button>
-                <button className="user-menu-item logout">
-                  🚪 Cerrar Sesión
+                <button className="user-menu-item logout" onClick={handleLogout}>
+                  <LogOut className="menu-icon" />
+                  <span>Cerrar Sesión</span>
                 </button>
               </div>
             )}
@@ -157,12 +189,35 @@ export function TopBar({
         )}
 
         {token && (
-          <button
-            className="settings-btn"
-            onClick={() => dispatch(setShowSettings(true))}
-          >
-            ⚙
-          </button>
+          <div className="settings-menu-container">
+            <button
+              className={`icon-btn settings-btn ${showSettingsMenu ? 'active' : ''}`}
+              onClick={handleToggleSettingsMenu}
+              title="Configuración"
+            >
+              <Settings />
+            </button>
+            {showSettingsMenu && (
+              <div className="user-menu-dropdown settings-menu-dropdown">
+                <button className="user-menu-item" onClick={handleInstallWorker}>
+                  <Download className="menu-icon" />
+                  <span>Instalar worker</span>
+                </button>
+                <button className="user-menu-item" onClick={handleFullscreenToggle}>
+                  {isFullscreen ? <Minimize2 className="menu-icon" /> : <Maximize2 className="menu-icon" />}
+                  <span>{isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}</span>
+                </button>
+                <button
+                  className="user-menu-item"
+                  onClick={handleInstallPWA}
+                  disabled={!installPromptAvailable}
+                >
+                  <Smartphone className="menu-icon" />
+                  <span>{installPromptAvailable ? 'Instalar PWA' : 'PWA no disponible'}</span>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -1,5 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import type { DragEvent, RefObject } from 'react';
+import ReactGridLayout, { WidthProvider } from 'react-grid-layout';
+import { ArrowDownToLine, Columns2, Grid2x2, Hexagon, Plus, Square } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   setLayoutMode,
@@ -9,7 +11,11 @@ import {
   setDraggingSessionId,
 } from '../../store';
 import type { TerminalInstance } from '../../App'; // We'll need to export this interface from App
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import './TerminalGrid.css';
+
+const GridLayout = WidthProvider(ReactGridLayout);
 
 interface TerminalGridProps {
   instancesRef: RefObject<Map<string, TerminalInstance>>;
@@ -17,7 +23,17 @@ interface TerminalGridProps {
 }
 
 // Component helper to reparent the terminal DOM element
-function TerminalSlot({ instance, className, onDrop }: { instance: TerminalInstance, className?: string, onDrop?: (e: DragEvent<HTMLDivElement>) => void }) {
+function TerminalSlot({
+  instance,
+  className,
+  isActive,
+  onDrop,
+}: {
+  instance: TerminalInstance;
+  className?: string;
+  isActive?: boolean;
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void;
+}) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,7 +47,6 @@ function TerminalSlot({ instance, className, onDrop }: { instance: TerminalInsta
       container.style.height = '100%';
       // Reset any manual styles that might interfere
       container.style.order = '';
-      container.classList.remove('active-slot');
       /* eslint-enable react-compiler/react-compiler */
 
       // Request fit
@@ -40,6 +55,11 @@ function TerminalSlot({ instance, className, onDrop }: { instance: TerminalInsta
       });
     }
   }, [instance]);
+
+  useEffect(() => {
+    if (!instance) return;
+    instance.containerRef.classList.toggle('active-slot', Boolean(isActive));
+  }, [instance, isActive]);
 
   return (
     <div
@@ -61,6 +81,25 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
   const draggingSessionId = useAppSelector((state) => state.sessions.draggingSessionId);
   const showDropOverlay = useAppSelector((state) => state.ui.showDropOverlay);
   const token = useAppSelector((state) => state.auth.token);
+  const gridAreaRef = useRef<HTMLDivElement>(null);
+  const [gridHeight, setGridHeight] = useState(0);
+
+  useEffect(() => {
+    if (layoutMode === 'single') {
+      setGridHeight(0);
+      return;
+    }
+    const node = gridAreaRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setGridHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [layoutMode]);
 
   const handleLayoutChange = (mode: 'single' | 'split-vertical' | 'quad') => {
     if (layoutMode === 'single' && activeSessionId && !gridSessionIds[0]) {
@@ -103,6 +142,24 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
     dispatch(setShowDropOverlay(false));
   };
 
+  const gridSlots = useMemo(() => (
+    layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3]
+  ), [layoutMode]);
+  const gridRows = layoutMode === 'split-vertical' ? 1 : 2;
+  const gridMargin: [number, number] = [8, 8];
+  const rowHeight = gridHeight > 0
+    ? Math.max(1, Math.floor((gridHeight - gridMargin[1] * (gridRows - 1)) / gridRows))
+    : 200;
+
+  const layout = useMemo(() => gridSlots.map((slotIndex, positionIndex) => ({
+    i: slotIndex.toString(),
+    x: positionIndex % 2,
+    y: Math.floor(positionIndex / 2),
+    w: 1,
+    h: 1,
+    static: true,
+  })), [gridSlots]);
+
   // Render logic
   const renderContent = () => {
     // Single Mode
@@ -117,7 +174,9 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
       if (sessions.length === 0 && token) {
         return (
           <div className="empty-state">
-            <div className="empty-icon">⬡</div>
+            <div className="empty-icon">
+              <Hexagon />
+            </div>
             <h2>No hay sesiones activas</h2>
             <p>Crea una nueva sesión desde el selector superior o el sidebar</p>
           </div>
@@ -125,44 +184,59 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
       }
 
       return activeInstance ? (
-        <TerminalSlot instance={activeInstance} className="active-slot" />
+        <TerminalSlot instance={activeInstance} isActive />
       ) : null;
     }
 
     // Grid Modes
-    const slots = layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3];
-    return slots.map(idx => {
-      const sessionId = gridSessionIds[idx];
-      const instance = sessionId && instancesRef.current ? instancesRef.current.get(sessionId) : undefined;
+    return (
+      <div className="terminal-grid-area" ref={gridAreaRef}>
+        <GridLayout
+          className="terminal-grid-layout"
+          layout={layout}
+          cols={2}
+          rowHeight={rowHeight}
+          margin={gridMargin}
+          containerPadding={[0, 0]}
+          isResizable={false}
+          isDraggable={false}
+          autoSize={false}
+          compactType={null}
+          preventCollision
+        >
+          {gridSlots.map((slotIndex) => {
+            const sessionId = gridSessionIds[slotIndex];
+            const instance = sessionId && instancesRef.current ? instancesRef.current.get(sessionId) : undefined;
 
-      if (instance) {
-        // Render Terminal
-        return (
-          <div key={`slot-${idx}`} className="grid-cell" style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <TerminalSlot
-              instance={instance}
-              className={sessionId === activeSessionId ? 'active-slot' : ''}
-              onDrop={handleDropOnSlot(idx)}
-            />
-          </div>
-        );
-      } else {
-        // Render Placeholder
-        return (
-          <div
-            key={`placeholder-${idx}`}
-            className={`empty-slot-target ${draggingSessionId ? 'droppable' : ''}`}
-            onDrop={handleDropOnSlot(idx)}
-            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-          >
-            <div className="slot-icon">
-              {draggingSessionId ? '⤓' : '+'}
-            </div>
-            <span>{draggingSessionId ? 'Soltar aquí' : 'Vacío'}</span>
-          </div>
-        );
-      }
-    });
+            if (instance) {
+              return (
+                <div key={slotIndex.toString()} className="grid-cell">
+                  <TerminalSlot
+                    instance={instance}
+                    isActive={sessionId === activeSessionId}
+                    onDrop={handleDropOnSlot(slotIndex)}
+                  />
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={slotIndex.toString()}
+                className={`empty-slot-target ${draggingSessionId ? 'droppable' : ''}`}
+                onDrop={handleDropOnSlot(slotIndex)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+              >
+                <div className="slot-icon">
+                  {draggingSessionId ? <ArrowDownToLine /> : <Plus />}
+                </div>
+                <span>{draggingSessionId ? 'Soltar aquí' : 'Vacío'}</span>
+              </div>
+            );
+          })}
+        </GridLayout>
+      </div>
+    );
   };
 
   return (
@@ -177,27 +251,21 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
             onClick={() => dispatch(setLayoutMode('single'))}
             title="Vista única"
           >
-            <svg viewBox="0 0 24 24">
-              <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" fill="none" strokeWidth="2" />
-            </svg>
+            <Square />
           </button>
           <button
             className={`layout-icon-btn ${layoutMode === 'split-vertical' ? 'active' : ''}`}
             onClick={() => handleLayoutChange('split-vertical')}
             title="Vista Dividida"
           >
-            <svg viewBox="0 0 24 24">
-              <path d="M4 4h16v16H4z M12 4v16" stroke="currentColor" fill="none" strokeWidth="2" />
-            </svg>
+            <Columns2 />
           </button>
           <button
             className={`layout-icon-btn ${layoutMode === 'quad' ? 'active' : ''}`}
             onClick={() => handleLayoutChange('quad')}
             title="Vista Cuádruple"
           >
-            <svg viewBox="0 0 24 24">
-              <path d="M4 4h16v16H4z M12 4v16M4 12h16" stroke="currentColor" fill="none" strokeWidth="2" />
-            </svg>
+            <Grid2x2 />
           </button>
         </div>
 

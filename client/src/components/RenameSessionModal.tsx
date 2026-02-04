@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 
 interface RenameSessionModalProps {
   initialName: string;
@@ -44,7 +45,9 @@ export const RenameSessionModal: React.FC<RenameSessionModalProps> = ({
       <div className="modal tag-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Renombrar Sesión</h3>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose} aria-label="Cerrar">
+            <X />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-body">

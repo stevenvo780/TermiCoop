@@ -5,6 +5,7 @@ import { WorkerList } from './WorkerList';
 import { CommandPanel } from './CommandPanel';
 import type { DragEvent } from 'react';
 import type { Worker } from '../../../store/slices/workersSlice';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -38,7 +39,7 @@ export function Sidebar({
           onClick={() => dispatch(toggleSidebar())}
           title={sidebarCollapsed ? 'Expandir' : 'Colapsar'}
         >
-          {sidebarCollapsed ? '›' : '‹'}
+          {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
         </button>
       </div>
 

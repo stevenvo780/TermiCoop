@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { closeDialog, setDialogLoading } from '../../store';
 import type { DialogAction } from '../../store/slices/uiSlice';
+import { X } from 'lucide-react';
 import './DialogModal.css';
 
 interface DialogModalProps {
@@ -50,7 +51,7 @@ export function DialogModal({ onAction }: DialogModalProps) {
             aria-label="Cerrar"
             disabled={dialogLoading}
           >
-            ✕
+            <X />
           </button>
         </div>
         <div className="dialog-body">

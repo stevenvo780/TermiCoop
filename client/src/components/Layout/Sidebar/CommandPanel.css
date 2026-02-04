@@ -103,10 +103,20 @@
   border: none;
   color: #6b7c93;
   cursor: pointer;
-  font-size: 0.85rem;
   padding: 4px;
   border-radius: 4px;
   transition: all 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.command-run svg,
+.command-star svg,
+.command-remove svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
 }
 
 .command-run:disabled,

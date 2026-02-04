@@ -11,21 +11,8 @@
 }
 
 .terminal-container.grid-layout {
-  display: grid;
-  gap: 4px;
-  padding: 4px;
-}
-
-.terminal-container.layout-split-vertical {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: min-content 1fr;
-}
-
-.terminal-container.layout-quad {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: min-content 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
 }
 
 .terminal-container.grid-layout .terminal-wrapper {
@@ -45,8 +32,6 @@
 }
 
 .terminal-toolbar {
-  grid-column: 1 / -1;
-  grid-row: 1;
   padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   display: flex;
@@ -82,6 +67,7 @@
 .layout-icon-btn svg {
   width: 18px;
   height: 18px;
+  stroke-width: 1.8;
 }
 
 .layout-icon-btn:hover {
@@ -92,6 +78,20 @@
 .layout-icon-btn.active {
   background: linear-gradient(135deg, rgba(36, 52, 71, 0.8) 0%, rgba(42, 90, 158, 0.4) 100%);
   color: #93c5fd;
+}
+
+.terminal-grid-area {
+  flex: 1;
+  min-height: 0;
+}
+
+.terminal-grid-layout {
+  height: 100%;
+}
+
+.grid-cell {
+  height: 100%;
+  width: 100%;
 }
 
 .empty-slot-target {
@@ -118,8 +118,16 @@
 }
 
 .slot-icon {
-  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0.5;
+}
+
+.slot-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
 }
 
 .empty-slot-target.droppable .slot-icon {
@@ -152,12 +160,17 @@
 }
 
 .empty-icon {
-  font-size: 3rem;
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #93c5fd;
   opacity: 0.6;
+}
+
+.empty-icon svg {
+  width: 48px;
+  height: 48px;
+  stroke-width: 1.4;
 }
 
 .empty-state h2 {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 
 interface ShareModalProps {
   worker: { id: string; name: string };
@@ -102,7 +103,9 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
         <div className="modal-header">
           <h3>Share Worker: {worker.name}</h3>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose} aria-label="Cerrar">
+            <X />
+          </button>
         </div>
 
         <div className="modal-body">

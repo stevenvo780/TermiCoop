@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Hexagon, TriangleAlert } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import './LoginPage.css';
 
@@ -21,7 +22,9 @@ export function LoginPage() {
       <div className="login-container">
         <div className="login-header">
           <div className="login-logo">
-            <span className="logo-icon">⬡</span>
+            <span className="logo-icon">
+              <Hexagon />
+            </span>
             <h1>Ultimate Terminal</h1>
           </div>
           <p className="login-subtitle">Sistema de terminal remoto distribuido</p>
@@ -57,7 +60,9 @@ export function LoginPage() {
 
           {authError && (
             <div className="error-message">
-              <span className="error-icon">⚠</span>
+              <span className="error-icon">
+                <TriangleAlert />
+              </span>
               {authError}
             </div>
           )}
