@@ -71,9 +71,11 @@ function AppContent() {
   const token = useAppSelector((state) => state.auth.token);
   const sessions = useAppSelector((state) => state.sessions.sessions);
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
+  const sessionOutput = useAppSelector((state) => state.sessions.sessionOutput);
   const workers = useAppSelector((state) => state.workers.workers);
   const offlineSessionIds = useAppSelector((state) => state.sessions.offlineSessionIds);
   const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
+  const connectionState = useAppSelector((state) => state.connection.connectionState);
   const renamingSessionId = useAppSelector((state) => state.ui.renamingSessionId);
   const shareModalWorker = useAppSelector((state) => state.ui.shareModalWorker);
   const showWorkerModal = useAppSelector((state) => state.ui.showWorkerModal);
@@ -81,6 +83,7 @@ function AppContent() {
   const showChangePasswordModal = useAppSelector((state) => state.ui.showChangePasswordModal);
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [instancesVersion, setInstancesVersion] = useState(0);
 
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -88,9 +91,18 @@ function AppContent() {
   const pendingSessionIdsRef = useRef<Set<string>>(new Set());
   const inputBuffersRef = useRef<Record<string, string>>({});
   const escapeInputRef = useRef<Record<string, boolean>>({});
+  const joinedSessionIdsRef = useRef<Set<string>>(new Set());
+  const sessionOutputRef = useRef<Record<string, string>>({});
 
   const normalizeWorkerKey = useCallback((name: string) => name.trim().toLowerCase(), []);
   const getAdaptiveFontSize = useCallback(() => (window.innerWidth <= 960 ? 13 : 14), []);
+  const bumpInstancesVersion = useCallback(() => {
+    setInstancesVersion((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    sessionOutputRef.current = sessionOutput;
+  }, [sessionOutput]);
 
   // Track input for command history
   const trackInputForHistory = useCallback((sessionId: string, workerKey: string, data: string) => {
@@ -139,7 +151,6 @@ function AppContent() {
       if (terminalInstancesRef.current.has(options.sessionId) || pendingSessionIdsRef.current.has(options.sessionId)) {
         return null;
       }
-      pendingSessionIdsRef.current.add(options.sessionId);
     }
 
     if (!options?.sessionId) {
@@ -149,6 +160,10 @@ function AppContent() {
     }
 
     if (!terminalContainerRef.current) return null;
+
+    if (options?.sessionId) {
+      pendingSessionIdsRef.current.add(options.sessionId);
+    }
 
     const sessionId = options?.sessionId || `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     const displayName = options?.displayName || worker.name;
@@ -218,6 +233,10 @@ function AppContent() {
     }
 
     terminalInstancesRef.current.set(sessionId, instance);
+    if (options?.sessionId) {
+      pendingSessionIdsRef.current.delete(options.sessionId);
+    }
+    bumpInstancesVersion();
 
     const storedSession: StoredSession = {
       id: sessionId,
@@ -243,7 +262,7 @@ function AppContent() {
 
     setTimeout(() => handleResize(), 100);
     return instance;
-  }, [dispatch, normalizeWorkerKey, getAdaptiveFontSize, trackInputForHistory]);
+  }, [dispatch, normalizeWorkerKey, getAdaptiveFontSize, trackInputForHistory, bumpInstancesVersion]);
 
   // Close session
   const handleCloseSession = useCallback((sessionId: string) => {
@@ -253,13 +272,14 @@ function AppContent() {
       instance.terminal.dispose();
       instance.containerRef.remove();
       terminalInstancesRef.current.delete(sessionId);
+      bumpInstancesVersion();
     }
     pendingSessionIdsRef.current.delete(sessionId);
     delete inputBuffersRef.current[sessionId];
     delete escapeInputRef.current[sessionId];
     socketRef.current?.emit('close-session', { sessionId });
     dispatch(removeSession(sessionId));
-  }, [dispatch]);
+  }, [dispatch, bumpInstancesVersion]);
 
   // Select worker and create/focus session
   const handleSelectWorker = useCallback((workerId: string) => {
@@ -448,6 +468,67 @@ function AppContent() {
     return () => { socketRef.current?.disconnect(); };
   }, [token, dispatch, sessions]);
 
+  useEffect(() => {
+    if (!token) {
+      joinedSessionIdsRef.current.clear();
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (connectionState === 'connected') {
+      joinedSessionIdsRef.current.clear();
+    }
+  }, [connectionState]);
+
+  useEffect(() => {
+    if (!token) return;
+    if (connectionState !== 'connected') return;
+    if (!terminalContainerRef.current) return;
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    sessions.forEach((session) => {
+      const worker = workers.find((w) =>
+        w.id === session.workerId || normalizeWorkerKey(w.name) === session.workerKey
+      );
+      if (!worker) return;
+
+      if (!terminalInstancesRef.current.has(session.id)) {
+        const cachedOutput = sessionOutputRef.current[session.id] || '';
+        const instance = createNewSession(worker, {
+          sessionId: session.id,
+          displayName: session.displayName,
+          createdAt: session.createdAt,
+          lastActiveAt: session.lastActiveAt,
+          initialOutput: cachedOutput || undefined,
+          focus: false,
+        });
+        if (!instance) return;
+      }
+
+      if (joinedSessionIdsRef.current.has(session.id)) return;
+
+      socket.emit('join-session', {
+        sessionId: session.id,
+        workerId: session.workerId,
+        displayName: session.displayName,
+      });
+      socket.emit('subscribe', { workerId: session.workerId });
+      joinedSessionIdsRef.current.add(session.id);
+
+      const cachedOutput = sessionOutputRef.current[session.id] || '';
+      socket.emit('get-session-output', { sessionId: session.id }, (output: string) => {
+        if (!output) return;
+        if (output === cachedOutput) return;
+        const instance = terminalInstancesRef.current.get(session.id);
+        if (!instance) return;
+        instance.terminal.reset();
+        instance.terminal.write(output);
+        dispatch(setSessionOutput({ sessionId: session.id, output }));
+      });
+    });
+  }, [token, connectionState, sessions, workers, createNewSession, dispatch, normalizeWorkerKey]);
+
   // PWA install prompt
   useEffect(() => {
     const handler = (event: Event) => {
@@ -525,7 +606,11 @@ function AppContent() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         />
-        <TerminalGrid instancesRef={terminalInstancesRef} containerRef={terminalContainerRef} />
+        <TerminalGrid
+          instancesRef={terminalInstancesRef}
+          containerRef={terminalContainerRef}
+          instancesVersion={instancesVersion}
+        />
       </div>
 
       {renamingSessionId && (

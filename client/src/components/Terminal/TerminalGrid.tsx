@@ -20,6 +20,7 @@ const GridLayout = WidthProvider(ReactGridLayout);
 interface TerminalGridProps {
   instancesRef: RefObject<Map<string, TerminalInstance>>;
   containerRef?: RefObject<HTMLDivElement | null>;
+  instancesVersion: number;
 }
 
 // Component helper to reparent the terminal DOM element
@@ -76,7 +77,7 @@ function TerminalSlot({
   );
 }
 
-export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) {
+export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: TerminalGridProps) {
   const dispatch = useAppDispatch();
   const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const sessions = useAppSelector((state) => state.sessions.sessions);
@@ -105,7 +106,7 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
 
   useEffect(() => {
     setInstancesSnapshot(new Map(instancesRef.current));
-  }, [instancesRef, sessions, gridSessionIds, activeSessionId, layoutMode]);
+  }, [instancesRef, sessions, gridSessionIds, activeSessionId, layoutMode, instancesVersion]);
 
   const handleLayoutChange = (mode: 'single' | 'split-vertical' | 'quad') => {
     if (layoutMode === 'single' && activeSessionId && !gridSessionIds[0]) {
