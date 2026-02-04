@@ -48,7 +48,7 @@ import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
 const NEXUS_URL = import.meta.env.VITE_NEXUS_URL ||
-  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3005');
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3002');
 const MAX_OUTPUT_CHARS = 20000;
 
 export interface TerminalInstance {
