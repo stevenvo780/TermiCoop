@@ -50,7 +50,9 @@ export function TopBar({
 
   return (
     <div className="topbar">
-      <div className="brand">Ultimate Terminal</div>
+      <div className="brand">
+        <span className="brand-icon">⬡</span>
+      </div>
 
       <div className="control-group">
         <label>Worker</label>
@@ -115,7 +117,7 @@ export function TopBar({
         </button>
 
         <div className={`status ${connectionState === 'connected' ? 'ok' :
-            connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
+          connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
           }`}>
           {connectionState === 'connected' && 'Conectado'}
           {connectionState === 'connecting' && 'Conectando...'}
