@@ -51,6 +51,9 @@ import './App.css';
 const NEXUS_URL = import.meta.env.VITE_NEXUS_URL ||
   (import.meta.env.PROD ? window.location.origin : 'http://localhost:3002');
 const MAX_OUTPUT_CHARS = 20000;
+const SESSION_OUTPUT_KEY = 'ut-session-output-v1';
+const OUTPUT_FLUSH_MS = 80;
+const OUTPUT_PERSIST_MS = 800;
 
 export interface TerminalInstance {
   id: string;
@@ -94,6 +97,9 @@ function AppContent() {
   const pendingSessionIdsRef = useRef<Set<string>>(new Set());
   const joinedSessionIdsRef = useRef<Set<string>>(new Set());
   const sessionOutputRef = useRef<Record<string, string>>({});
+  const outputBufferRef = useRef<Record<string, string>>({});
+  const outputFlushTimerRef = useRef<number | null>(null);
+  const outputPersistTimerRef = useRef<number | null>(null);
 
   const normalizeWorkerKey = useCallback((name: string) => name.trim().toLowerCase(), []);
   const getAdaptiveFontSize = useCallback(() => (window.innerWidth <= 960 ? 13 : 14), []);
@@ -104,6 +110,46 @@ function AppContent() {
   useEffect(() => {
     sessionOutputRef.current = sessionOutput;
   }, [sessionOutput]);
+
+  useEffect(() => {
+    if (outputPersistTimerRef.current) {
+      window.clearTimeout(outputPersistTimerRef.current);
+    }
+    outputPersistTimerRef.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(sessionOutput));
+      } catch {
+        // ignore storage errors
+      }
+      outputPersistTimerRef.current = null;
+    }, OUTPUT_PERSIST_MS);
+    return () => {
+      if (outputPersistTimerRef.current) {
+        window.clearTimeout(outputPersistTimerRef.current);
+        outputPersistTimerRef.current = null;
+      }
+    };
+  }, [sessionOutput]);
+
+  const flushOutputBuffer = useCallback(() => {
+    const pending = outputBufferRef.current;
+    outputBufferRef.current = {};
+    const entries = Object.entries(pending);
+    if (entries.length === 0) return;
+    entries.forEach(([sessionId, chunk]) => {
+      dispatch(updateSessionOutput({ sessionId, output: chunk }));
+    });
+  }, [dispatch]);
+
+  const queueOutput = useCallback((sessionId: string, chunk: string) => {
+    if (!chunk) return;
+    outputBufferRef.current[sessionId] = (outputBufferRef.current[sessionId] || '') + chunk;
+    if (outputFlushTimerRef.current !== null) return;
+    outputFlushTimerRef.current = window.setTimeout(() => {
+      outputFlushTimerRef.current = null;
+      flushOutputBuffer();
+    }, OUTPUT_FLUSH_MS);
+  }, [flushOutputBuffer]);
 
   useEffect(() => {
     if (token) return;
@@ -432,7 +478,7 @@ function AppContent() {
             const instance = terminalInstancesRef.current.get(session.id);
             if (instance) {
               instance.terminal.write(data.data);
-              dispatch(updateSessionOutput({ sessionId: session.id, output: data.data }));
+              queueOutput(session.id, data.data);
             }
           });
         });
@@ -462,7 +508,7 @@ function AppContent() {
       });
 
     return () => { socketRef.current?.disconnect(); };
-  }, [token, dispatch, sessions]);
+  }, [token, dispatch, sessions, queueOutput]);
 
   useEffect(() => {
     if (!token) {

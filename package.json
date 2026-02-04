@@ -14,6 +14,7 @@
     "package:deb": "bash packaging/build.sh --deb",
     "package:deb:worker": "bash packaging/build.sh --deb worker",
     "package:deb:nexus": "bash packaging/build.sh --deb nexus",
+    "package:deb:ubuntu": "bash packaging/worker/build-ubuntu-debs.sh",
     "package:rpm": "bash packaging/build.sh --rpm",
     "package:all": "bash packaging/build.sh --all",
     "package:worker:compat": "bash packaging/worker/build-compat.sh",

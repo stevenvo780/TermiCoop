@@ -32,10 +32,30 @@ echo "Instalando/Actualizando Ultimate Terminal Worker..."
 echo "Sistema detectado: $OS_ID $VERSION_ID ($ARCH_RAW)"
 
 install_deb() {
+  apt_fix() {
+    echo "Resolviendo dependencias..."
+    if $SUDO apt-get update -y && $SUDO apt-get install -f -y; then
+      return 0
+    fi
+
+    echo "Reintentando con IPv4 + mirror alterno..."
+    APT_OPTS="-o Acquire::Retries=3 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20"
+    if [ -f /etc/apt/sources.list ]; then
+      if echo "$OS_ID" | grep -Eq '^(ubuntu|linuxmint|pop|kali)$'; then
+        $SUDO sed -i \
+          -e 's|http://security.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' \
+          -e 's|https://security.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' \
+          /etc/apt/sources.list || true
+      fi
+    fi
+    $SUDO apt-get $APT_OPTS update -y || true
+    $SUDO apt-get $APT_OPTS install -f -y
+  }
+
   echo "Descargando worker .deb..."
   curl -fL "${NEXUS_URL}/api/downloads/latest/worker-linux.deb?os=${OS_ID}&version=${VERSION_ID}&arch=${ARCH_RAW}" -o /tmp/worker.deb
   echo "Instalando..."
-  $SUDO dpkg -i /tmp/worker.deb || $SUDO apt-get install -f -y
+  $SUDO dpkg -i /tmp/worker.deb || apt_fix
 }
 
 install_rpm() {

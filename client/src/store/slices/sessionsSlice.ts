@@ -138,11 +138,9 @@ const sessionsSlice = createSlice({
       const MAX_OUTPUT_CHARS = 20000;
       const current = state.sessionOutput[action.payload.sessionId] || '';
       state.sessionOutput[action.payload.sessionId] = `${current}${action.payload.output}`.slice(-MAX_OUTPUT_CHARS);
-      localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(state.sessionOutput));
     },
     setSessionOutput: (state, action: PayloadAction<{ sessionId: string; output: string }>) => {
       state.sessionOutput[action.payload.sessionId] = action.payload.output;
-      localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(state.sessionOutput));
     },
     setIsRestored: (state, action: PayloadAction<boolean>) => {
       state.isRestored = action.payload;

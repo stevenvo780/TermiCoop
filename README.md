@@ -27,6 +27,12 @@ Convención recomendada de nombres:
 - `ultimate-terminal-worker_1.0.0_debian11_amd64.deb`
 - `ultimate-terminal-worker-1.0.0-1.ubuntu20.04.x86_64.rpm`
 
+Build multi-ubuntu (LTS) .deb:
+```bash
+npm run package:deb:ubuntu
+```
+Genera `.deb` para Ubuntu 20.04/22.04/24.04 con `libc6` mínimo adecuado y `pty.node` compilado por versión.
+
 ## Development Setup
 
 1. **Install Dependencies**

@@ -30,6 +30,12 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
   const [rhelDistro, setRhelDistro] = useState('rhel');
   const [rhelVersion, setRhelVersion] = useState('9');
   const [rhelArch, setRhelArch] = useState('x86_64');
+  const ubuntuVersions = useMemo(() => ([
+    { value: '24.04', label: '24.04 LTS (Noble)' },
+    { value: '22.04', label: '22.04 LTS (Jammy)' },
+    { value: '20.04', label: '20.04 LTS (Focal)' },
+  ]), []);
+  const isUbuntu = debianDistro === 'ubuntu';
 
   const baseUrl = useMemo(() => nexusUrl.replace(/\/$/, ''), [nexusUrl]);
   const apiKey = worker?.api_key || apiKeyInput.trim();
@@ -74,6 +80,12 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
       setReportedName(worker.name);
     }
   }, [reportedName, worker?.name]);
+
+  useEffect(() => {
+    if (isUbuntu && !ubuntuVersions.some((item) => item.value === debianVersion)) {
+      setDebianVersion('22.04');
+    }
+  }, [debianVersion, isUbuntu, ubuntuVersions]);
 
   useEffect(() => {
     let isMounted = true;
@@ -335,12 +347,26 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
                           </div>
                           <div className="form-group">
                             <label>Versión</label>
-                            <input
-                              type="text"
-                              value={debianVersion}
-                              onChange={(event) => setDebianVersion(event.target.value)}
-                              placeholder="ej. 22.04 / 12"
-                            />
+                            {isUbuntu ? (
+                              <select
+                                className="install-select"
+                                value={debianVersion}
+                                onChange={(event) => setDebianVersion(event.target.value)}
+                              >
+                                {ubuntuVersions.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={debianVersion}
+                                onChange={(event) => setDebianVersion(event.target.value)}
+                                placeholder="ej. 12 / 11 / 10"
+                              />
+                            )}
                           </div>
                           <div className="form-group">
                             <label>Arquitectura</label>
@@ -365,6 +391,11 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
                             .deb {packageStatus.deb === 'ok' ? 'disponible' : packageStatus.deb === 'missing' ? 'no encontrado' : packageStatus.deb === 'checking' ? 'verificando' : 'desconocido'}
                           </span>
                         </div>
+                        {isUbuntu && (
+                          <div className="helper-note">
+                            Paquetes LTS disponibles: 20.04, 22.04 y 24.04. Versiones más antiguas no se soportan.
+                          </div>
+                        )}
                         <div className="helper-row">
                           <span className="helper-label">Descarga directa (.deb)</span>
                           <button
