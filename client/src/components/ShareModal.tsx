@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Users, Trash2 } from 'lucide-react';
+import './ShareModal.css';
 
 interface ShareModalProps {
   worker: { id: string; name: string };
@@ -99,29 +100,33 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-        <div className="modal-header">
-          <h3>Share Worker: {worker.name}</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Cerrar">
-            <X />
+    <div className="share-modal-overlay" onClick={onClose}>
+      <div className="share-modal" onClick={e => e.stopPropagation()}>
+        <div className="share-header">
+          <h3>
+            <Users size={20} className="text-blue-400" />
+            Share Worker: <span className="text-blue-200">{worker.name}</span>
+          </h3>
+          <button className="close-btn" onClick={onClose} aria-label="Close">
+            <X size={20} />
           </button>
         </div>
 
-        <div className="modal-body">
-          <div className="share-form" style={{ marginBottom: '20px', padding: '15px', background: '#333', borderRadius: '4px' }}>
-            <h4>Add User</h4>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+        <div className="share-body">
+          <div className="add-user-section">
+            <div className="section-label">Add Person</div>
+            <div className="add-input-group">
               <input
+                className="share-input"
                 value={newUsername}
                 onChange={e => setNewUsername(e.target.value)}
-                placeholder="Username"
-                style={{ flex: 1, padding: '8px', background: '#222', border: '1px solid #444', color: '#fff' }}
+                placeholder="Enter username"
+                onKeyDown={(e) => e.key === 'Enter' && handleShare()}
               />
               <select
+                className="permission-select"
                 value={newPermission}
                 onChange={e => setNewPermission(e.target.value)}
-                style={{ padding: '8px', background: '#222', border: '1px solid #444', color: '#fff' }}
               >
                 <option value="view">View</option>
                 <option value="control">Control</option>
@@ -130,46 +135,54 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
               <button
                 onClick={handleShare}
                 disabled={adding || !newUsername}
-                className="dialog-btn primary"
+                className="add-btn"
               >
                 {adding ? '...' : 'Add'}
               </button>
             </div>
-            {error && <p style={{ color: '#ff6b6b', marginTop: '10px', fontSize: '0.9em' }}>{error}</p>}
+            {error && <div className="error-text">{error}</div>}
           </div>
 
-          <h4>Shared With</h4>
-          {loading ? (
-            <p>Loading...</p>
-          ) : shares.length === 0 ? (
-            <p style={{ color: '#888', fontStyle: 'italic' }}>Not shared with anyone yet.</p>
-          ) : (
-            <div className="shares-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {shares.map(share => (
-                <div key={share.userId} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px', borderBottom: '1px solid #333'
-                }}>
-                  <div>
-                    <span style={{ fontWeight: 'bold' }}>{share.username}</span>
-                    <span style={{ marginLeft: '10px', fontSize: '0.8em', background: '#444', padding: '2px 6px', borderRadius: '4px' }}>
-                      {share.permission}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleUnshare(share.userId)}
-                    style={{ background: 'transparent', color: '#ff6b6b', border: 'none', cursor: 'pointer' }}
-                  >
-                    Remove
-                  </button>
+          <div className="shared-list-section">
+            <div className="section-label">Shared With ({shares.length})</div>
+            <div className="shared-list">
+              {loading ? (
+                <div className="empty-list">Loading access list...</div>
+              ) : shares.length === 0 ? (
+                <div className="empty-list">
+                  Not shared with anyone yet.<br />
+                  Add a user above to grant access.
                 </div>
-              ))}
+              ) : (
+                shares.map(share => (
+                  <div key={share.userId} className="share-item">
+                    <div className="user-info">
+                      <div className="user-avatar">
+                        {share.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="user-details">
+                        <span className="username">{share.username}</span>
+                        <span className={`permission-badge ${share.permission}`}>
+                          {share.permission}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      className="remove-btn"
+                      onClick={() => handleUnshare(share.userId)}
+                      title="Revoke Access"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="modal-footer" style={{ marginTop: '20px', textAlign: 'right' }}>
-          <button className="dialog-btn" onClick={onClose}>Close</button>
+        <div className="share-footer">
+          <button className="close-modal-btn" onClick={onClose}>Done</button>
         </div>
       </div>
     </div>

@@ -37,6 +37,7 @@ import { RenameSessionModal } from './components/RenameSessionModal';
 import { ShareModal } from './components/ShareModal';
 import { InstallWorkerModal } from './components/InstallWorkerModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { Toast } from './components/Layout/Toast';
 
 // Terminal
 import { Terminal } from '@xterm/xterm';
@@ -47,7 +48,7 @@ import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
 const NEXUS_URL = import.meta.env.VITE_NEXUS_URL ||
-  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3002');
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3005');
 const MAX_OUTPUT_CHARS = 20000;
 
 export interface TerminalInstance {
@@ -79,6 +80,8 @@ function AppContent() {
   const showWorkerModal = useAppSelector((state) => state.ui.showWorkerModal);
   const editingWorker = useAppSelector((state) => state.ui.editingWorker);
   const showChangePasswordModal = useAppSelector((state) => state.ui.showChangePasswordModal);
+
+  const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [instancesVersion, setInstancesVersion] = useState(0);
@@ -414,6 +417,13 @@ function AppContent() {
             dispatch(setConnectionState('reconnecting'));
           }
         });
+
+        socket.on('worker-shared', (data: { workerId: string; name: string; owner: string }) => {
+          setNotification({
+            title: 'New Worker Shared',
+            message: `${data.owner} shared "${data.name}" with you. It has been added to your list.`
+          });
+        });
       })
       .catch(() => {
         dispatch(clearAuth());
@@ -592,6 +602,14 @@ function AppContent() {
           onSuccess={() => { }}
           nexusUrl={NEXUS_URL}
           token={token}
+        />
+      )}
+
+      {notification && (
+        <Toast
+          title={notification.title}
+          message={notification.message}
+          onClose={() => setNotification(null)}
         />
       )}
 

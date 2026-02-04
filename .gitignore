@@ -51,3 +51,4 @@ payload.tar.gz
 .DS_Store
 credenciales-prod.md
 deploy-prod/*
+docker

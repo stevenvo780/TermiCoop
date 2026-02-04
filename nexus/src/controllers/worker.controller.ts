@@ -42,6 +42,29 @@ export class WorkerController {
     }
 
     await WorkerModel.share(workerId, targetUser.id, permission || 'view');
+
+    // Notify target user
+    const io = req.app.get('io');
+    if (io) {
+      // We need to find the socket ID for this user.
+      // Since we don't track user->socket mappings globally in a simple way in the controller,
+      // we can broadcast to all sockets and let them filter, OR (better) loop through sockets.
+      // Based on socket.ts logic, we can iterate sockets.
+      io.sockets.sockets.forEach((socket: any) => {
+        if (socket.data?.role === 'client' && socket.data?.user?.userId === targetUser.id) {
+          // Trigger a refresh of the worker list for this user
+          socket.emit('worker-shared', { workerId, name: worker.name, owner: req.user?.username });
+          // Also force update their list immediately
+          // We can't easily call sendWorkerListToSocket here without importing it or duplicating logic.
+          // But the client can listen to 'worker-shared' and request the list or we can just send 'workers' event if we fetch it.
+          // Let's just emit 'worker-shared' and let client handle refresh, OR fetch and emit.
+          WorkerModel.getAccessibleWorkers(targetUser.id).then((list) => {
+            socket.emit('workers', list);
+          });
+        }
+      });
+    }
+
     res.json({ success: true, user: { id: targetUser.id, username: targetUser.username, permission: permission || 'view' } });
   }
 

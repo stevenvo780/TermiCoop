@@ -634,6 +634,74 @@
   gap: 12px;
 }
 
+.install-option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.install-select {
+  background: rgba(12, 17, 23, 0.8);
+  color: #e7e7e7;
+  border: 1px solid rgba(36, 52, 71, 0.6);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  transition: all 200ms ease;
+}
+
+.install-select:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+}
+
+.install-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.install-tab-btn {
+  background: #0c1117;
+  color: #9fb3c8;
+  border: 1px solid #243447;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.install-tab-btn.active {
+  background: #1a2332;
+  border-color: #2a5a9e;
+  color: #e7e7e7;
+}
+
+.install-tab-panel {
+  border: 1px solid #1f2a3c;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(10, 15, 26, 0.6);
+}
+
+.info-box {
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  color: #c4d4f2;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.info-box strong {
+  color: #e7e7e7;
+}
+
 .install-mode-toggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

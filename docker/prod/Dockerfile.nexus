@@ -14,10 +14,14 @@ RUN dpkg -i /tmp/packages/ultimate-terminal-nexus_*.deb
 # Expose worker packages for remote installs
 RUN mkdir -p /usr/share/ultimate-terminal/downloads \
   && if ls /tmp/packages/ultimate-terminal-worker_*.deb >/dev/null 2>&1; then \
-       cp /tmp/packages/ultimate-terminal-worker_*.deb /usr/share/ultimate-terminal/downloads/worker-linux.deb; \
+       cp /tmp/packages/ultimate-terminal-worker_*.deb /usr/share/ultimate-terminal/downloads/; \
+       deb_file=$(ls /tmp/packages/ultimate-terminal-worker_*.deb | head -n 1); \
+       cp "$deb_file" /usr/share/ultimate-terminal/downloads/worker-linux.deb; \
      fi \
   && if ls /tmp/packages/ultimate-terminal-worker-*.rpm >/dev/null 2>&1; then \
-       cp /tmp/packages/ultimate-terminal-worker-*.rpm /usr/share/ultimate-terminal/downloads/worker-linux.rpm; \
+       cp /tmp/packages/ultimate-terminal-worker-*.rpm /usr/share/ultimate-terminal/downloads/; \
+       rpm_file=$(ls /tmp/packages/ultimate-terminal-worker-*.rpm | head -n 1); \
+       cp "$rpm_file" /usr/share/ultimate-terminal/downloads/worker-linux.rpm; \
      fi
 
 ENV PORT=3002

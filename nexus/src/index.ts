@@ -42,6 +42,7 @@ const startServer = async () => {
     // initSocket might be internal, but if it uses models, it manages its own async events.
     // We pass server.
     const io = initSocket(httpServer);
+    app.set('io', io);
 
     httpServer.listen(PORT, () => {
         console.log(`[Nexus] Server running on port ${PORT}`);

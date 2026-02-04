@@ -13,6 +13,20 @@ A distributed terminal system allowing you to control and view your devices from
 |-----------|----------|----------|-------------|
 | **Worker** | Linux | `worker/bin/worker-linux` | Standalone binary. Copy to any VPS/PC and run. |
 
+### Compatibilidad GLIBC (workers)
+Si el binario falla en VPS comunes (Ubuntu 20.04/22.04, Debian), compílalo dentro de un entorno base antiguo:
+```bash
+npm run package:worker:compat
+```
+Esto genera `worker/bin/worker-linux` usando Ubuntu 20.04 + Node 18 para mayor compatibilidad.
+
+### Paquetes por distro / version
+`/api/downloads/latest/worker-linux.deb` y `.rpm` aceptan `?os=...&version=...&arch=...` y el servidor selecciona el paquete más compatible si hay varios en `/usr/share/ultimate-terminal/downloads`.
+Convención recomendada de nombres:
+- `ultimate-terminal-worker_1.0.0_ubuntu20.04_amd64.deb`
+- `ultimate-terminal-worker_1.0.0_debian11_amd64.deb`
+- `ultimate-terminal-worker-1.0.0-1.ubuntu20.04.x86_64.rpm`
+
 ## Development Setup
 
 1. **Install Dependencies**

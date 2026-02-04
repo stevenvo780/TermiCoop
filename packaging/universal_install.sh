@@ -31,6 +31,7 @@ else
     VERSION_ID="unknown"
 fi
 echo "Detected OS: $OS $VERSION_ID"
+ARCH_RAW="$(uname -m || echo unknown)"
 
 # --- Helper Functions ---
 setup_service() {
@@ -119,7 +120,7 @@ install_binary() {
     # Download Package
     local pkg_file="/tmp/worker.$pkg_type"
     echo "Downloading $pkg_type package..."
-    curl -L "$NEXUS_URL/download/$pkg_type" -o "$pkg_file"
+    curl -fL "$NEXUS_URL/api/downloads/latest/worker-linux.$pkg_type?os=$OS&version=$VERSION_ID&arch=$ARCH_RAW" -o "$pkg_file"
     
     # Install Package
     if [ "$pkg_type" == "deb" ]; then
@@ -133,7 +134,7 @@ install_binary() {
     # Hard to test without running it. 
     # Let's assume if package installed cleanly, we try to run --version or help
     if ! /usr/bin/ultimate-terminal-worker --help &> /dev/null; then
-       echo "❌ Binary execution failed (GLIBC mismatch?). Switching to source build..."
+       echo "ERROR: Binary execution failed (possible GLIBC mismatch). Switching to source build..."
        # Cleanup package
        if [ "$pkg_type" == "deb" ]; then dpkg -r ultimate-terminal-worker; else rpm -e ultimate-terminal-worker; fi
        install_from_source
@@ -149,4 +150,4 @@ install_binary() {
 
 install_binary
 
-echo "✅ Installation Complete! Worker should be online."
+echo "Installation complete. Worker should be online."
