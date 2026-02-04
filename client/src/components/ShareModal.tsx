@@ -15,6 +15,20 @@ interface Share {
   permission: string;
 }
 
+const normalizeShares = (data: Array<Partial<Share> & Record<string, unknown>>): Share[] => {
+  return data
+    .map((item) => {
+      const rawId = item.userId ?? item.userid ?? item.user_id;
+      const userId = Number(rawId);
+      return {
+        userId,
+        username: String(item.username || ''),
+        permission: String(item.permission || 'view'),
+      };
+    })
+    .filter((item) => Number.isFinite(item.userId) && item.username.length > 0);
+};
+
 export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps) {
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +41,15 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
   const fetchShares = async () => {
     if (!token) return;
     try {
+      setError(null);
       setLoading(true);
       const res = await fetch(`${nexusUrl}/api/workers/${worker.id}/shares`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (!res.ok) throw new Error('Failed to fetch shares');
       const data = await res.json();
-      setShares(data);
+      setShares(normalizeShares(data));
     } catch {
       setError('Could not load shares');
     } finally {
@@ -68,7 +84,11 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
       if (!res.ok) throw new Error(data.error || 'Failed to share');
 
       setNewUsername('');
-      fetchShares();
+      if (Array.isArray(data.shares)) {
+        setShares(normalizeShares(data.shares));
+      } else {
+        fetchShares();
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to share');
     } finally {
@@ -93,12 +113,16 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         })
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'No se pudo quitar el acceso');
       }
-      setShares((current) => current.filter((share) => share.userId !== userId));
-      fetchShares();
+      if (Array.isArray(data.shares)) {
+        setShares(normalizeShares(data.shares));
+      } else {
+        setShares((current) => current.filter((share) => share.userId !== userId));
+        fetchShares();
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo quitar el acceso');
     } finally {

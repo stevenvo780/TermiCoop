@@ -97,8 +97,9 @@ export class WorkerModel {
     `, [workerId, userId, permission]);
   }
 
-  static async unshare(workerId: string, userId: number): Promise<void> {
-    await db.run('DELETE FROM worker_shares WHERE worker_id = ? AND user_id = ?', [workerId, userId]);
+  static async unshare(workerId: string, userId: number): Promise<number> {
+    const result = await db.run('DELETE FROM worker_shares WHERE worker_id = ? AND user_id = ?', [workerId, userId]);
+    return result.changes || 0;
   }
 
   static async updateStatus(id: string, status: 'online' | 'offline'): Promise<void> {
@@ -128,7 +129,7 @@ export class WorkerModel {
 
   static async getShares(workerId: string): Promise<{ userId: number; username: string; permission: string }[]> {
     const result = await db.query<{ userId: number; username: string; permission: string }>(`
-      SELECT ws.user_id as userId, u.username, ws.permission
+      SELECT ws.user_id as "userId", u.username, ws.permission
       FROM worker_shares ws
       JOIN users u ON ws.user_id = u.id
       WHERE ws.worker_id = ?
