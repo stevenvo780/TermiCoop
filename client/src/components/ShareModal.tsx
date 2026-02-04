@@ -77,7 +77,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
 
   const handleUnshare = async (userId: number) => {
     if (!token) return;
-    if (!confirm('Are you sure you want to remove this user?')) return;
+    if (!confirm('¿Seguro que deseas quitar este usuario?')) return;
 
     try {
       const res = await fetch(`${nexusUrl}/api/workers/unshare`, {
@@ -105,7 +105,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         <div className="share-header">
           <h3>
             <Users size={20} className="text-blue-400" />
-            Share Worker: <span className="text-blue-200">{worker.name}</span>
+            Compartir worker: <span className="text-blue-200">{worker.name}</span>
           </h3>
           <button className="close-btn" onClick={onClose} aria-label="Close">
             <X size={20} />
@@ -114,13 +114,13 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
 
         <div className="share-body">
           <div className="add-user-section">
-            <div className="section-label">Add Person</div>
+            <div className="section-label">Agregar usuario</div>
             <div className="add-input-group">
               <input
                 className="share-input"
                 value={newUsername}
                 onChange={e => setNewUsername(e.target.value)}
-                placeholder="Enter username"
+                placeholder="Usuario"
                 onKeyDown={(e) => e.key === 'Enter' && handleShare()}
               />
               <select
@@ -128,7 +128,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
                 value={newPermission}
                 onChange={e => setNewPermission(e.target.value)}
               >
-                <option value="view">View</option>
+                <option value="view">Ver</option>
                 <option value="control">Control</option>
                 <option value="admin">Admin</option>
               </select>
@@ -137,21 +137,21 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
                 disabled={adding || !newUsername}
                 className="add-btn"
               >
-                {adding ? '...' : 'Add'}
+                {adding ? '...' : 'Agregar'}
               </button>
             </div>
             {error && <div className="error-text">{error}</div>}
           </div>
 
           <div className="shared-list-section">
-            <div className="section-label">Shared With ({shares.length})</div>
+            <div className="section-label">Compartido con ({shares.length})</div>
             <div className="shared-list">
               {loading ? (
-                <div className="empty-list">Loading access list...</div>
+                <div className="empty-list">Cargando lista de acceso...</div>
               ) : shares.length === 0 ? (
                 <div className="empty-list">
-                  Not shared with anyone yet.<br />
-                  Add a user above to grant access.
+                  Aún no está compartido.<br />
+                  Agrega un usuario para dar acceso.
                 </div>
               ) : (
                 shares.map(share => (
@@ -170,7 +170,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
                     <button
                       className="remove-btn"
                       onClick={() => handleUnshare(share.userId)}
-                      title="Revoke Access"
+                      title="Quitar acceso"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -182,7 +182,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         </div>
 
         <div className="share-footer">
-          <button className="close-modal-btn" onClick={onClose}>Done</button>
+          <button className="close-modal-btn" onClick={onClose}>Listo</button>
         </div>
       </div>
     </div>

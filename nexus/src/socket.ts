@@ -2,6 +2,7 @@
 import { Server, Socket } from 'socket.io';
 import { verifyToken, JwtPayload } from './utils/jwt';
 import { WorkerModel, Worker } from './models/worker.model';
+import { UserModel } from './models/user.model';
 import db from './config/database';
 
 interface SocketData {
@@ -158,7 +159,15 @@ export const initSocket = (httpServer: any) => {
       if (type === 'client') {
         if (!token) return next(new Error('Missing token'));
         const payload = verifyToken(token);
+
+        // FIX: Verify user exists in DB to prevent stale tokens (e.g. after DB reset)
+        const userExists = await UserModel.findById(payload.userId);
+        if (!userExists) {
+          return next(new Error('User invalid or no longer exists'));
+        }
+
         socket.data = { role: 'client', user: payload } as SocketData;
+        console.log(`[Socket] Client connected: ${payload.username} (${payload.userId})`);
         return next();
       }
 

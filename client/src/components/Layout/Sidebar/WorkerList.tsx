@@ -61,6 +61,8 @@ export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
       {filteredWorkers.length > 0 && filteredWorkers.map((worker: Worker) => {
         const workerKey = normalizeWorkerKey(worker.name);
         const tags = workerTags[workerKey] || [];
+        const permission = worker.permission || 'admin';
+        const canManage = permission === 'admin';
         return (
           <div
             key={worker.id}
@@ -85,16 +87,18 @@ export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
                 : <span className="tag-chip empty">Sin tags</span>}
             </div>
             <div className="worker-actions">
-              <button
-                className="delete-worker-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteConfirm(worker);
-                }}
-                title="Eliminar worker"
-              >
-                <Trash2 />
-              </button>
+              {canManage && (
+                <button
+                  className="delete-worker-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConfirm(worker);
+                  }}
+                  title="Eliminar worker"
+                >
+                  <Trash2 />
+                </button>
+              )}
               <button
                 className="add-session-btn"
                 onClick={(e) => {
@@ -105,24 +109,26 @@ export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
               >
                 <Plus />
               </button>
-              <button
-                className="share-worker-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dispatch(setShareModalWorker(worker));
-                }}
-                title="Compartir worker"
-              >
-                <Link />
-              </button>
-              {worker.status === 'offline' && worker.api_key && (
+              {canManage && (
+                <button
+                  className="share-worker-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch(setShareModalWorker(worker));
+                  }}
+                  title="Compartir worker"
+                >
+                  <Link />
+                </button>
+              )}
+              {canManage && worker.api_key && (
                 <button
                   className="install-worker-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleInstallWorker(worker);
                   }}
-                  title="Ver instrucciones de instalación"
+                  title="API key e instalación"
                 >
                   <Download />
                 </button>

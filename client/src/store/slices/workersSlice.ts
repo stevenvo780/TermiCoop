@@ -7,6 +7,7 @@ export interface Worker {
   status?: 'online' | 'offline';
   lastSeen?: string;
   api_key?: string;
+  permission?: 'view' | 'control' | 'admin';
 }
 
 const WORKER_TAGS_KEY = 'ut-worker-tags';
