@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   clearAuth,
@@ -59,6 +59,9 @@ export function TopBar({
   const isFullscreen = useAppSelector((state) => state.ui.isFullscreen);
   const showSettingsMenu = useAppSelector((state) => state.ui.showSettings);
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
+  const [sessionMenuPosition, setSessionMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const sessionMenuAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const sessionsStripRef = useRef<HTMLDivElement | null>(null);
 
   const handleToggleUserMenu = () => {
     dispatch(setShowUserMenu(!showUserMenu));
@@ -104,8 +107,46 @@ export function TopBar({
   };
 
   const handleSessionMenuToggle = (sessionId: string) => {
-    setSessionMenuId((current) => (current === sessionId ? null : sessionId));
+    setSessionMenuId((current) => {
+      if (current === sessionId) {
+        setSessionMenuPosition(null);
+        return null;
+      }
+      return sessionId;
+    });
   };
+
+  const activeSessionMenu = useMemo(
+    () => sessions.find((session) => session.id === sessionMenuId) || null,
+    [sessions, sessionMenuId]
+  );
+
+  const updateSessionMenuPosition = useCallback(() => {
+    const anchor = sessionMenuAnchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const menuWidth = 200;
+    const left = Math.min(rect.left, window.innerWidth - menuWidth - 8);
+    setSessionMenuPosition({
+      top: rect.bottom + 6,
+      left: Math.max(8, left),
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!sessionMenuId) return;
+    updateSessionMenuPosition();
+    const handleWindow = () => updateSessionMenuPosition();
+    const strip = sessionsStripRef.current;
+    window.addEventListener('resize', handleWindow);
+    window.addEventListener('scroll', handleWindow, true);
+    strip?.addEventListener('scroll', handleWindow);
+    return () => {
+      window.removeEventListener('resize', handleWindow);
+      window.removeEventListener('scroll', handleWindow, true);
+      strip?.removeEventListener('scroll', handleWindow);
+    };
+  }, [sessionMenuId, updateSessionMenuPosition]);
 
   const handleSendToGrid = (sessionId: string) => {
     const nextSlots = gridSessionIds.slice(0, 4);
@@ -130,7 +171,7 @@ export function TopBar({
         </span>
       </div>
 
-      <div className="topbar-sessions">
+      <div className="topbar-sessions" ref={sessionsStripRef}>
         {sessions.map((session) => (
           <div
             key={session.id}
@@ -146,7 +187,10 @@ export function TopBar({
           >
             <button
               className="session-chip-main"
-              onClick={() => dispatch(setActiveSession(session.id))}
+              onClick={() => {
+                dispatch(setActiveSession(session.id));
+                setSessionMenuId(null);
+              }}
               type="button"
               title={session.displayName}
             >
@@ -156,6 +200,7 @@ export function TopBar({
               className="session-chip-menu-btn"
               onClick={(event) => {
                 event.stopPropagation();
+                sessionMenuAnchorRef.current = event.currentTarget;
                 handleSessionMenuToggle(session.id);
               }}
               title="Opciones"
@@ -163,40 +208,44 @@ export function TopBar({
             >
               <MoreHorizontal />
             </button>
-            {sessionMenuId === session.id && (
-              <div className="session-chip-menu">
-                <button
-                  className="session-chip-menu-item"
-                  onClick={() => {
-                    dispatch(setRenamingSessionId(session.id));
-                    setSessionMenuId(null);
-                  }}
-                  type="button"
-                >
-                  Renombrar
-                </button>
-                <button
-                  className="session-chip-menu-item"
-                  onClick={() => handleSendToGrid(session.id)}
-                  type="button"
-                >
-                  Enviar al grid
-                </button>
-                <button
-                  className="session-chip-menu-item danger"
-                  onClick={() => {
-                    onCloseSession(session.id);
-                    setSessionMenuId(null);
-                  }}
-                  type="button"
-                >
-                  Cerrar sesión
-                </button>
-              </div>
-            )}
           </div>
         ))}
       </div>
+
+      {activeSessionMenu && sessionMenuPosition && (
+        <div
+          className="session-chip-menu floating"
+          style={{ top: `${sessionMenuPosition.top}px`, left: `${sessionMenuPosition.left}px` }}
+        >
+          <button
+            className="session-chip-menu-item"
+            onClick={() => {
+              dispatch(setRenamingSessionId(activeSessionMenu.id));
+              setSessionMenuId(null);
+            }}
+            type="button"
+          >
+            Renombrar
+          </button>
+          <button
+            className="session-chip-menu-item"
+            onClick={() => handleSendToGrid(activeSessionMenu.id)}
+            type="button"
+          >
+            Enviar al grid
+          </button>
+          <button
+            className="session-chip-menu-item danger"
+            onClick={() => {
+              onCloseSession(activeSessionMenu.id);
+              setSessionMenuId(null);
+            }}
+            type="button"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      )}
 
       <div className="topbar-stats">
         <span>{sessions.length} sesion{sessions.length !== 1 ? 'es' : ''}</span>
