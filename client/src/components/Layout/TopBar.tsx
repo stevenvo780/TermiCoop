@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   clearAuth,
+  assignGridSlot,
   setShowChangePasswordModal,
   setShowSettings,
   setShowUserMenu,
+  setActiveSession,
+  setLayoutMode,
+  setRenamingSessionId,
   setShowWorkerModal,
   setEditingWorker,
 } from '../../store';
@@ -13,6 +18,7 @@ import {
   LogOut,
   Maximize2,
   Minimize2,
+  MoreHorizontal,
   Play,
   Settings,
   Smartphone,
@@ -26,6 +32,9 @@ interface TopBarProps {
   onFullscreen: () => void;
   onInstallPWA: () => void;
   installPromptAvailable: boolean;
+  onCloseSession: (sessionId: string) => void;
+  onDragStart: (sessionId: string, displayName: string, event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
 }
 
 export function TopBar({
@@ -33,22 +42,29 @@ export function TopBar({
   onFullscreen,
   onInstallPWA,
   installPromptAvailable,
+  onCloseSession,
+  onDragStart,
+  onDragEnd,
 }: TopBarProps) {
   const dispatch = useAppDispatch();
   const workers = useAppSelector((state) => state.workers.workers);
   const sessions = useAppSelector((state) => state.sessions.sessions);
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
+  const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
+  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const connectionState = useAppSelector((state) => state.connection.connectionState);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const token = useAppSelector((state) => state.auth.token);
   const showUserMenu = useAppSelector((state) => state.ui.showUserMenu);
   const isFullscreen = useAppSelector((state) => state.ui.isFullscreen);
   const showSettingsMenu = useAppSelector((state) => state.ui.showSettings);
+  const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
 
   const handleToggleUserMenu = () => {
     dispatch(setShowUserMenu(!showUserMenu));
     if (!showUserMenu) {
       dispatch(setShowSettings(false));
+      setSessionMenuId(null);
     }
   };
 
@@ -56,6 +72,7 @@ export function TopBar({
     dispatch(setShowSettings(!showSettingsMenu));
     if (!showSettingsMenu) {
       dispatch(setShowUserMenu(false));
+      setSessionMenuId(null);
     }
   };
 
@@ -86,12 +103,99 @@ export function TopBar({
     dispatch(setShowUserMenu(false));
   };
 
+  const handleSessionMenuToggle = (sessionId: string) => {
+    setSessionMenuId((current) => (current === sessionId ? null : sessionId));
+  };
+
+  const handleSendToGrid = (sessionId: string) => {
+    const nextSlots = gridSessionIds.slice(0, 4);
+    while (nextSlots.length < 4) {
+      nextSlots.push('');
+    }
+    const emptyIdx = nextSlots.findIndex((id) => !id);
+    const slotIndex = emptyIdx >= 0 ? emptyIdx : 0;
+
+    if (layoutMode === 'single') {
+      dispatch(setLayoutMode('quad'));
+    }
+    dispatch(assignGridSlot({ slotIndex, sessionId }));
+    setSessionMenuId(null);
+  };
+
   return (
     <div className="topbar">
       <div className="brand">
         <span className="brand-icon">
           <Hexagon />
         </span>
+      </div>
+
+      <div className="topbar-sessions">
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className={`session-chip ${activeSessionId === session.id ? 'active' : ''}`}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData('text/plain', session.id);
+              event.dataTransfer.setData('application/x-session-name', session.displayName);
+              event.dataTransfer.effectAllowed = 'move';
+              onDragStart(session.id, session.displayName, event);
+            }}
+            onDragEnd={onDragEnd}
+          >
+            <button
+              className="session-chip-main"
+              onClick={() => dispatch(setActiveSession(session.id))}
+              type="button"
+              title={session.displayName}
+            >
+              <span className="session-chip-name">{session.displayName}</span>
+            </button>
+            <button
+              className="session-chip-menu-btn"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleSessionMenuToggle(session.id);
+              }}
+              title="Opciones"
+              type="button"
+            >
+              <MoreHorizontal />
+            </button>
+            {sessionMenuId === session.id && (
+              <div className="session-chip-menu">
+                <button
+                  className="session-chip-menu-item"
+                  onClick={() => {
+                    dispatch(setRenamingSessionId(session.id));
+                    setSessionMenuId(null);
+                  }}
+                  type="button"
+                >
+                  Renombrar
+                </button>
+                <button
+                  className="session-chip-menu-item"
+                  onClick={() => handleSendToGrid(session.id)}
+                  type="button"
+                >
+                  Enviar al grid
+                </button>
+                <button
+                  className="session-chip-menu-item danger"
+                  onClick={() => {
+                    onCloseSession(session.id);
+                    setSessionMenuId(null);
+                  }}
+                  type="button"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="topbar-stats">

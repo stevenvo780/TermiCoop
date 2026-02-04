@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { DragEvent, RefObject } from 'react';
 import ReactGridLayout, { WidthProvider } from 'react-grid-layout/legacy';
-import { ArrowDownToLine, Columns2, Grid2x2, Hexagon, Plus, Square } from 'lucide-react';
+import { ArrowDownToLine, Columns2, Grid2x2, Hexagon, Plus, Square, X } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   setLayoutMode,
@@ -9,6 +9,7 @@ import {
   clearGrid,
   setShowDropOverlay,
   setDraggingSessionId,
+  setGridSessionIds,
 } from '../../store';
 import type { TerminalInstance } from '../../App'; // We'll need to export this interface from App
 import 'react-grid-layout/css/styles.css';
@@ -149,6 +150,15 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
     dispatch(setShowDropOverlay(false));
   };
 
+  const handleClearSlot = (slotIndex: number) => {
+    const nextSlots = gridSessionIds.slice(0, 4);
+    while (nextSlots.length < 4) {
+      nextSlots.push('');
+    }
+    nextSlots[slotIndex] = '';
+    dispatch(setGridSessionIds(nextSlots));
+  };
+
   const gridSlots = useMemo(() => (
     layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3]
   ), [layoutMode]);
@@ -223,6 +233,30 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
                     isActive={sessionId === activeSessionId}
                     onDrop={handleDropOnSlot(slotIndex)}
                   />
+                  <button
+                    className="grid-slot-remove"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleClearSlot(slotIndex);
+                    }}
+                    title="Quitar del grid"
+                    type="button"
+                  >
+                    <X />
+                  </button>
+                  {draggingSessionId && (
+                    <div
+                      className="grid-drop-overlay"
+                      onDrop={handleDropOnSlot(slotIndex)}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                      }}
+                    >
+                      <ArrowDownToLine />
+                      <span>Reemplazar</span>
+                    </div>
+                  )}
                 </div>
               );
             }

@@ -71,6 +71,139 @@
   font-size: 0.7rem;
   color: #6b7c93;
   font-weight: 400;
+  flex-shrink: 0;
+}
+
+.topbar-sessions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 2px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.topbar-sessions::-webkit-scrollbar {
+  height: 6px;
+}
+
+.topbar-sessions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.topbar-sessions::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.session-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(36, 52, 71, 0.55);
+  background: rgba(10, 14, 22, 0.6);
+  color: #9fb3c8;
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.session-chip:active {
+  cursor: grabbing;
+}
+
+.session-chip.active {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(96, 165, 250, 0.12);
+  color: #e7e7e7;
+}
+
+.session-chip-main {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  max-width: 160px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.session-chip-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-chip-menu-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: #9fb3c8;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.session-chip-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.session-chip-menu-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.session-chip-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 180px;
+  background: rgba(15, 22, 36, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+}
+
+.session-chip-menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #9fb3c8;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-size: 0.85rem;
+}
+
+.session-chip-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.session-chip-menu-item.danger {
+  color: #fca5a5;
+}
+
+.session-chip-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.18);
 }
 
 .topbar-right {

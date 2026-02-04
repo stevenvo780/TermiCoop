@@ -23,7 +23,6 @@ import {
   openDialog,
   closeDialog,
   setShowChangePasswordModal,
-  addCommandToHistory,
 } from './store';
 import type { Worker } from './store/slices/workersSlice';
 import type { StoredSession } from './store/slices/sessionsSlice';
@@ -73,7 +72,6 @@ function AppContent() {
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
   const sessionOutput = useAppSelector((state) => state.sessions.sessionOutput);
   const workers = useAppSelector((state) => state.workers.workers);
-  const offlineSessionIds = useAppSelector((state) => state.sessions.offlineSessionIds);
   const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const connectionState = useAppSelector((state) => state.connection.connectionState);
   const renamingSessionId = useAppSelector((state) => state.ui.renamingSessionId);
@@ -89,8 +87,6 @@ function AppContent() {
   const socketRef = useRef<Socket | null>(null);
   const terminalInstancesRef = useRef<Map<string, TerminalInstance>>(new Map());
   const pendingSessionIdsRef = useRef<Set<string>>(new Set());
-  const inputBuffersRef = useRef<Record<string, string>>({});
-  const escapeInputRef = useRef<Record<string, boolean>>({});
   const joinedSessionIdsRef = useRef<Set<string>>(new Set());
   const sessionOutputRef = useRef<Record<string, string>>({});
 
@@ -103,34 +99,6 @@ function AppContent() {
   useEffect(() => {
     sessionOutputRef.current = sessionOutput;
   }, [sessionOutput]);
-
-  // Track input for command history
-  const trackInputForHistory = useCallback((sessionId: string, workerKey: string, data: string) => {
-    let buffer = inputBuffersRef.current[sessionId] || '';
-    let inEscape = escapeInputRef.current[sessionId] || false;
-
-    for (const ch of data) {
-      const code = ch.charCodeAt(0);
-      if (inEscape) {
-        if (code >= 64 && code <= 126) inEscape = false;
-        continue;
-      }
-      if (ch === '\x1b') { inEscape = true; continue; }
-      if (ch === '\r' || ch === '\n') {
-        if (buffer.trim().length > 0) {
-          dispatch(addCommandToHistory({ workerKey, command: buffer }));
-        }
-        buffer = '';
-        continue;
-      }
-      if (ch === '\x7f') { buffer = buffer.slice(0, -1); continue; }
-      if (code < 32) continue;
-      buffer += ch;
-    }
-
-    inputBuffersRef.current[sessionId] = buffer;
-    escapeInputRef.current[sessionId] = inEscape;
-  }, [dispatch]);
 
   // Create new terminal session
   const createNewSession = useCallback((
@@ -200,7 +168,6 @@ function AppContent() {
     });
 
     term.onData((data) => {
-      trackInputForHistory(sessionId, workerKey, data);
       socketRef.current?.emit('execute', { workerId: worker.id, sessionId, command: data });
     });
 
@@ -262,7 +229,7 @@ function AppContent() {
 
     setTimeout(() => handleResize(), 100);
     return instance;
-  }, [dispatch, normalizeWorkerKey, getAdaptiveFontSize, trackInputForHistory, bumpInstancesVersion]);
+  }, [dispatch, normalizeWorkerKey, getAdaptiveFontSize, bumpInstancesVersion]);
 
   // Close session
   const handleCloseSession = useCallback((sessionId: string) => {
@@ -275,8 +242,6 @@ function AppContent() {
       bumpInstancesVersion();
     }
     pendingSessionIdsRef.current.delete(sessionId);
-    delete inputBuffersRef.current[sessionId];
-    delete escapeInputRef.current[sessionId];
     socketRef.current?.emit('close-session', { sessionId });
     dispatch(removeSession(sessionId));
   }, [dispatch, bumpInstancesVersion]);
@@ -329,16 +294,6 @@ function AppContent() {
       }));
     }
   }, [token, dispatch]);
-
-  // Execute command
-  const handleExecuteCommand = useCallback((command: string) => {
-    const session = sessions.find((s) => s.id === activeSessionId);
-    if (!session || offlineSessionIds.includes(session.id)) return;
-
-    const payload = command.endsWith('\n') ? command : `${command}\n`;
-    socketRef.current?.emit('execute', { workerId: session.workerId, sessionId: session.id, command: payload });
-    dispatch(addCommandToHistory({ workerKey: session.workerKey, command }));
-  }, [sessions, activeSessionId, offlineSessionIds, dispatch]);
 
   // Resume session
   const handleResume = useCallback(() => {
@@ -577,6 +532,9 @@ function AppContent() {
         onFullscreen={handleFullscreen}
         onInstallPWA={handleInstallPWA}
         installPromptAvailable={!!installPrompt}
+        onCloseSession={handleCloseSession}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
       />
 
       <DialogModal onAction={(actionId) => {
@@ -598,13 +556,9 @@ function AppContent() {
 
       <div className="content">
         <Sidebar
-          onCloseSession={handleCloseSession}
           onSelectWorker={handleSelectWorker}
           onNewSession={handleNewSession}
           onDeleteWorker={handleDeleteWorker}
-          onExecuteCommand={handleExecuteCommand}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
         />
         <TerminalGrid
           instancesRef={terminalInstancesRef}
