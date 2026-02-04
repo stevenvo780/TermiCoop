@@ -13,6 +13,7 @@ import './TerminalGrid.css';
 
 interface TerminalGridProps {
   instancesRef: RefObject<Map<string, TerminalInstance>>;
+  containerRef?: RefObject<HTMLDivElement | null>;
 }
 
 // Component helper to reparent the terminal DOM element
@@ -51,7 +52,7 @@ function TerminalSlot({ instance, className, onDrop }: { instance: TerminalInsta
   );
 }
 
-export function TerminalGrid({ instancesRef }: TerminalGridProps) {
+export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) {
   const dispatch = useAppDispatch();
   const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const sessions = useAppSelector((state) => state.sessions.sessions);
@@ -166,6 +167,7 @@ export function TerminalGrid({ instancesRef }: TerminalGridProps) {
 
   return (
     <div
+      ref={containerRef}
       className={`terminal-container layout-${layoutMode} ${layoutMode !== 'single' ? 'grid-layout' : ''}`}
     >
       <div className="terminal-toolbar">

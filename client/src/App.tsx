@@ -529,7 +529,7 @@ function AppContent() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         />
-        <TerminalGrid instancesRef={terminalInstancesRef} />
+        <TerminalGrid instancesRef={terminalInstancesRef} containerRef={terminalContainerRef} />
       </div>
 
       {renamingSessionId && (
