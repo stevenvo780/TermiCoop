@@ -52,6 +52,18 @@ const initialState: SessionsState = {
   layoutMode: (localStorage.getItem(LAYOUT_MODE_KEY) as LayoutMode) || 'single',
 };
 
+const emptyState: SessionsState = {
+  sessions: [],
+  activeSessionId: null,
+  offlineSessionIds: [],
+  gridSessionIds: [],
+  sessionOutput: {},
+  lastWorkerKey: null,
+  isRestored: false,
+  draggingSessionId: null,
+  layoutMode: 'single',
+};
+
 const sessionsSlice = createSlice({
   name: 'sessions',
   initialState,
@@ -147,6 +159,15 @@ const sessionsSlice = createSlice({
       localStorage.removeItem(SESSION_OUTPUT_KEY);
       localStorage.removeItem(ACTIVE_SESSION_KEY);
     },
+    resetSessionsState: (state) => {
+      Object.assign(state, emptyState);
+      localStorage.removeItem(SESSION_STORE_KEY);
+      localStorage.removeItem(SESSION_OUTPUT_KEY);
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+      localStorage.removeItem(GRID_SLOTS_KEY);
+      localStorage.removeItem(LAST_WORKER_KEY);
+      localStorage.removeItem(LAYOUT_MODE_KEY);
+    },
     setSessions: (state, action: PayloadAction<StoredSession[]>) => {
       state.sessions = action.payload;
       localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
@@ -172,6 +193,7 @@ export const {
   setIsRestored,
   setDraggingSessionId,
   clearAllSessions,
+  resetSessionsState,
   setSessions,
   setLayoutMode,
 } = sessionsSlice.actions;

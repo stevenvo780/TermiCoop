@@ -5,7 +5,7 @@ import {
   setConnectionState,
   setWorkers,
   setCurrentUser,
-  clearAuth,
+  logoutAndReset,
   setNeedsSetup,
 } from '../store';
 import type { Worker } from '../store/slices/workersSlice';
@@ -104,7 +104,7 @@ export function useSocket(
       ].some((needle) => normalized.includes(needle));
 
       if (isAuthIssue) {
-        dispatch(clearAuth('Sesión expirada o inválida. Inicia sesión de nuevo.'));
+        dispatch(logoutAndReset('Sesión expirada o inválida. Inicia sesión de nuevo.'));
         return;
       }
       dispatch(setConnectionState('reconnecting'));
@@ -134,7 +134,7 @@ export function useSocket(
         initSocket(token);
       })
       .catch(() => {
-        dispatch(clearAuth());
+        dispatch(logoutAndReset());
         dispatch(setNeedsSetup(true));
       });
 

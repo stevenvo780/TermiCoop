@@ -1,13 +1,14 @@
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { configureStore, combineReducers, type ThunkAction, type Action } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 
-import authReducer from './slices/authSlice';
+import authReducer, { clearAuth } from './slices/authSlice';
 import connectionReducer from './slices/connectionSlice';
-import workersReducer from './slices/workersSlice';
-import sessionsReducer from './slices/sessionsSlice';
+import workersReducer, { resetWorkersState } from './slices/workersSlice';
+import sessionsReducer, { resetSessionsState } from './slices/sessionsSlice';
 import uiReducer from './slices/uiSlice';
-import commandsReducer from './slices/commandsSlice';
+import commandsReducer, { resetCommandsState } from './slices/commandsSlice';
+import { setConnectionState } from './slices/connectionSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -43,6 +44,16 @@ export const persistor = persistStore(store);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, Action<string>>;
+
+export const logoutAndReset = (message?: string): AppThunk => (dispatch) => {
+  dispatch(clearAuth(message));
+  dispatch(resetSessionsState());
+  dispatch(resetWorkersState());
+  dispatch(resetCommandsState());
+  dispatch(setConnectionState('disconnected'));
+  persistor.purge();
+};
 
 // Re-export all slice actions and selectors for easier imports
 export * from './slices/authSlice';

@@ -8,7 +8,7 @@ import {
   setConnectionState,
   setWorkers,
   setCurrentUser,
-  clearAuth,
+  logoutAndReset,
   setNeedsSetup,
   setIsFullscreen,
   setShowDropOverlay,
@@ -102,6 +102,18 @@ function AppContent() {
   useEffect(() => {
     sessionOutputRef.current = sessionOutput;
   }, [sessionOutput]);
+
+  useEffect(() => {
+    if (token) return;
+    terminalInstancesRef.current.forEach((instance) => {
+      window.removeEventListener('resize', instance.resizeHandler);
+      instance.terminal.dispose();
+      instance.containerRef.remove();
+    });
+    terminalInstancesRef.current.clear();
+    pendingSessionIdsRef.current.clear();
+    joinedSessionIdsRef.current.clear();
+  }, [token]);
 
   // Create new terminal session
   const createNewSession = useCallback((
@@ -412,7 +424,7 @@ function AppContent() {
             (needle) => message.toLowerCase().includes(needle)
           );
           if (isAuthIssue) {
-            dispatch(clearAuth('Sesión expirada. Inicia sesión de nuevo.'));
+            dispatch(logoutAndReset('Sesión expirada. Inicia sesión de nuevo.'));
           } else {
             dispatch(setConnectionState('reconnecting'));
           }
@@ -426,7 +438,7 @@ function AppContent() {
         });
       })
       .catch(() => {
-        dispatch(clearAuth());
+        dispatch(logoutAndReset());
         dispatch(setNeedsSetup(true));
       });
 

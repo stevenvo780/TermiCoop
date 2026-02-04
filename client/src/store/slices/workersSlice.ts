@@ -35,6 +35,13 @@ const initialState: WorkersState = {
   workerGrouping: parseStored<string>(localStorage.getItem(WORKER_GROUPING_KEY), 'none') === 'tag' ? 'tag' : 'none',
 };
 
+const emptyState: WorkersState = {
+  workers: [],
+  workerTags: {},
+  workerQuery: '',
+  workerGrouping: 'none',
+};
+
 const workersSlice = createSlice({
   name: 'workers',
   initialState,
@@ -72,6 +79,11 @@ const workersSlice = createSlice({
       state.workerGrouping = action.payload;
       localStorage.setItem(WORKER_GROUPING_KEY, JSON.stringify(action.payload));
     },
+    resetWorkersState: (state) => {
+      Object.assign(state, emptyState);
+      localStorage.removeItem(WORKER_TAGS_KEY);
+      localStorage.removeItem(WORKER_GROUPING_KEY);
+    },
   },
 });
 
@@ -84,6 +96,7 @@ export const {
   updateWorkerTags,
   setWorkerQuery,
   setWorkerGrouping,
+  resetWorkersState,
 } = workersSlice.actions;
 
 export default workersSlice.reducer;

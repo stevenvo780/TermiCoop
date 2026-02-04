@@ -31,6 +31,12 @@ const initialState: CommandsState = {
   commandTab: 'history',
 };
 
+const emptyState: CommandsState = {
+  commandHistory: {},
+  commandSnippets: {},
+  commandTab: 'history',
+};
+
 const commandsSlice = createSlice({
   name: 'commands',
   initialState,
@@ -64,6 +70,11 @@ const commandsSlice = createSlice({
     setCommandTab: (state, action: PayloadAction<'history' | 'snippets'>) => {
       state.commandTab = action.payload;
     },
+    resetCommandsState: (state) => {
+      Object.assign(state, emptyState);
+      localStorage.removeItem(COMMAND_HISTORY_KEY);
+      localStorage.removeItem(COMMAND_SNIPPETS_KEY);
+    },
   },
 });
 
@@ -73,6 +84,7 @@ export const {
   addSnippet,
   removeSnippet,
   setCommandTab,
+  resetCommandsState,
 } = commandsSlice.actions;
 
 export default commandsSlice.reducer;

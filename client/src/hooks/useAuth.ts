@@ -5,8 +5,8 @@ import {
   setAuthError,
   setBusy,
   setNeedsSetup,
-  clearAuth,
   loginSuccess,
+  logoutAndReset,
 } from '../store';
 import { NEXUS_URL } from './useSocket';
 
@@ -106,7 +106,7 @@ export function useAuth(): UseAuthReturn {
   }, [dispatch]);
 
   const logout = useCallback(() => {
-    dispatch(clearAuth());
+    dispatch(logoutAndReset());
   }, [dispatch]);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<boolean> => {

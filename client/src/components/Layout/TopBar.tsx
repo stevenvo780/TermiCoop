@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  clearAuth,
+  logoutAndReset,
   assignGridSlot,
   setShowChangePasswordModal,
   setShowSettings,
@@ -102,7 +102,7 @@ export function TopBar({
   };
 
   const handleLogout = () => {
-    dispatch(clearAuth());
+    dispatch(logoutAndReset());
     dispatch(setShowUserMenu(false));
   };
 
