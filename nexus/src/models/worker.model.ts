@@ -123,7 +123,8 @@ export class WorkerModel {
     const share = await db.get<{ permission: string }>('SELECT permission FROM worker_shares WHERE worker_id = ? AND user_id = ?', [workerId, userId]);
     if (!share) return false;
 
-    const levels = { 'view': 1, 'control': 2, 'admin': 3 };
+    // Single share mode: treat view/control as the same permission level.
+    const levels = { 'view': 2, 'control': 2, 'admin': 3 };
     return levels[share.permission as keyof typeof levels] >= levels[requiredPermission];
   }
 

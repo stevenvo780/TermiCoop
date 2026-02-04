@@ -8,6 +8,7 @@ router.use(authMiddleware);
 
 router.get('/', WorkerController.list);
 router.post('/', WorkerController.create);
+router.post('/join', WorkerController.join);
 router.post('/share', WorkerController.share);
 router.post('/unshare', WorkerController.unshare);
 router.get('/:id/shares', WorkerController.getShares);

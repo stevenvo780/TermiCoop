@@ -1103,6 +1103,15 @@
   color: #6b7c93;
 }
 
+.error-text {
+  font-size: 0.85rem;
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
 .topbar-stats {
   display: flex;
   align-items: center;

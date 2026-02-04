@@ -40,6 +40,7 @@ import { ShareModal } from './components/ShareModal';
 import { InstallWorkerModal } from './components/InstallWorkerModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { Toast } from './components/Layout/Toast';
+import { JoinWorkerModal } from './components/JoinWorkerModal';
 
 // Terminal
 import { Terminal } from '@xterm/xterm';
@@ -84,6 +85,7 @@ function AppContent() {
   const showChangePasswordModal = useAppSelector((state) => state.ui.showChangePasswordModal);
 
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [instancesVersion, setInstancesVersion] = useState(0);
@@ -600,6 +602,7 @@ function AppContent() {
         <Sidebar
           onSelectWorker={handleSelectWorker}
           onNewSession={handleNewSession}
+          onJoinWorker={() => setShowJoinModal(true)}
         />
         <TerminalGrid
           instancesRef={terminalInstancesRef}
@@ -629,6 +632,14 @@ function AppContent() {
           token={token}
         />
       )}
+
+      <JoinWorkerModal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        nexusUrl={NEXUS_URL}
+        token={token}
+        onJoined={refreshWorkers}
+      />
 
       {showChangePasswordModal && token && (
         <ChangePasswordModal

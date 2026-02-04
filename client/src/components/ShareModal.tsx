@@ -34,9 +34,9 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newUsername, setNewUsername] = useState('');
-  const [newPermission, setNewPermission] = useState('view');
   const [adding, setAdding] = useState(false);
   const [unsharingId, setUnsharingId] = useState<number | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const fetchShares = async () => {
     if (!token) return;
@@ -76,7 +76,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         body: JSON.stringify({
           workerId: worker.id,
           targetUsername: newUsername,
-          permission: newPermission
+          permission: 'control'
         })
       });
 
@@ -94,6 +94,13 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleCopyCode = () => {
+    if (!worker.id) return;
+    navigator.clipboard.writeText(worker.id);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1500);
   };
 
   const handleUnshare = async (userId: number) => {
@@ -154,15 +161,6 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
                 placeholder="Usuario"
                 onKeyDown={(e) => e.key === 'Enter' && handleShare()}
               />
-              <select
-                className="permission-select"
-                value={newPermission}
-                onChange={e => setNewPermission(e.target.value)}
-              >
-                <option value="view">Ver</option>
-                <option value="control">Control</option>
-                <option value="admin">Admin</option>
-              </select>
               <button
                 onClick={handleShare}
                 disabled={adding || !newUsername}
@@ -172,6 +170,19 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
               </button>
             </div>
             {error && <div className="error-text">{error}</div>}
+          </div>
+
+          <div className="share-code-section">
+            <div className="section-label">Código para unirse</div>
+            <div className="share-code-box">
+              <code className="share-code">{worker.id}</code>
+              <button className="copy-code-btn" onClick={handleCopyCode}>
+                {copiedCode ? 'Copiado' : 'Copiar'}
+              </button>
+            </div>
+            <div className="share-code-hint">
+              Comparte este código si la otra persona se une por código.
+            </div>
           </div>
 
           <div className="shared-list-section">
@@ -193,9 +204,6 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
                       </div>
                       <div className="user-details">
                         <span className="username">{share.username}</span>
-                        <span className={`permission-badge ${share.permission}`}>
-                          {share.permission}
-                        </span>
                       </div>
                     </div>
                     <button

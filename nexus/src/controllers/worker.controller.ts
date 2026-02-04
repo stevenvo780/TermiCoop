@@ -10,6 +10,25 @@ export class WorkerController {
     res.json(workers);
   }
 
+  static async join(req: Request, res: Response) {
+    if (!req.user) { res.status(401).send(); return; }
+    const { code, workerId } = req.body;
+    const joinCode = String(code || workerId || '').trim();
+
+    if (!joinCode) {
+      res.status(400).json({ error: 'Código requerido' });
+      return;
+    }
+
+    const worker = await WorkerModel.findById(joinCode);
+    if (!worker) { res.status(404).json({ error: 'Código inválido' }); return; }
+
+    if (worker.owner_id !== req.user.userId) {
+      await WorkerModel.share(worker.id, req.user.userId, 'control');
+    }
+
+    res.json({ success: true });
+  }
   static async create(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
     const { name } = req.body;
@@ -21,16 +40,14 @@ export class WorkerController {
 
   static async share(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
-    const { workerId, targetUsername, permission } = req.body;
+    const { workerId, targetUsername } = req.body;
 
     if (!targetUsername) { res.status(400).json({ error: 'Username required' }); return; }
 
     const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
-    const canManage = worker.owner_id === req.user.userId
-      || req.user.isAdmin
-      || await WorkerModel.hasAccess(req.user.userId, workerId, 'admin');
+    const canManage = worker.owner_id === req.user.userId || req.user.isAdmin;
 
     if (!canManage) {
       res.status(403).json({ error: 'Only owner or admin can share' });
@@ -45,7 +62,8 @@ export class WorkerController {
       return;
     }
 
-    await WorkerModel.share(workerId, targetUser.id, permission || 'view');
+    const enforcedPermission = 'control' as const;
+    await WorkerModel.share(workerId, targetUser.id, enforcedPermission);
 
     // Notify target user
     const io = req.app.get('io');
@@ -76,7 +94,7 @@ export class WorkerController {
     const shares = await WorkerModel.getShares(workerId);
     res.json({
       success: true,
-      user: { id: targetUser.id, username: targetUser.username, permission: permission || 'view' },
+      user: { id: targetUser.id, username: targetUser.username, permission: enforcedPermission },
       shares
     });
   }
@@ -88,9 +106,7 @@ export class WorkerController {
     const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
-    const canManage = worker.owner_id === req.user.userId
-      || req.user.isAdmin
-      || await WorkerModel.hasAccess(req.user.userId, workerId, 'admin');
+    const canManage = worker.owner_id === req.user.userId || req.user.isAdmin;
 
     if (!canManage) {
       res.status(403).json({ error: 'Forbidden' });
@@ -109,9 +125,7 @@ export class WorkerController {
     const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
-    const canManage = worker.owner_id === req.user.userId
-      || req.user.isAdmin
-      || await WorkerModel.hasAccess(req.user.userId, workerId, 'admin');
+    const canManage = worker.owner_id === req.user.userId || req.user.isAdmin;
 
     if (!canManage) {
       res.status(403).json({ error: 'Only owner or admin can unshare' });

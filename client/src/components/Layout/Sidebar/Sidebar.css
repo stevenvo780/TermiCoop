@@ -72,6 +72,32 @@
   justify-content: center;
 }
 
+.worker-join-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(36, 52, 71, 0.5);
+  color: #9fb3c8;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.worker-join-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.worker-join-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #fff;
+}
+
 .worker-create-btn svg {
   width: 14px;
   height: 14px;
