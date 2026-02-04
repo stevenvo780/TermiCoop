@@ -22,6 +22,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
   const [newUsername, setNewUsername] = useState('');
   const [newPermission, setNewPermission] = useState('view');
   const [adding, setAdding] = useState(false);
+  const [unsharingId, setUnsharingId] = useState<number | null>(null);
 
   const fetchShares = async () => {
     if (!token) return;
@@ -77,8 +78,8 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
 
   const handleUnshare = async (userId: number) => {
     if (!token) return;
-    if (!confirm('¿Seguro que deseas quitar este usuario?')) return;
-
+    setUnsharingId(userId);
+    setError(null);
     try {
       const res = await fetch(`${nexusUrl}/api/workers/unshare`, {
         method: 'POST',
@@ -92,10 +93,16 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         })
       });
 
-      if (!res.ok) throw new Error('Failed to unshare');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo quitar el acceso');
+      }
+      setShares((current) => current.filter((share) => share.userId !== userId));
       fetchShares();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to unshare');
+      setError(err instanceof Error ? err.message : 'No se pudo quitar el acceso');
+    } finally {
+      setUnsharingId(null);
     }
   };
 
@@ -170,6 +177,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
                     <button
                       className="remove-btn"
                       onClick={() => handleUnshare(share.userId)}
+                      disabled={unsharingId === share.userId}
                       title="Quitar acceso"
                     >
                       <Trash2 size={14} />

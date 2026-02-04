@@ -290,6 +290,11 @@
   transition: all 0.2s;
 }
 
+.remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .remove-btn:hover {
   color: #fca5a5;
   background: rgba(220, 38, 38, 0.1);
