@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 
 interface ChangePasswordModalProps {
   onClose: () => void;
@@ -69,7 +70,8 @@ export function ChangePasswordModal({ onClose, onSuccess, nexusUrl, token }: Cha
           <div className="modal-body">
             {success ? (
               <div className="success-message">
-                ✅ Contraseña cambiada exitosamente
+                <CheckCircle2 />
+                Contraseña cambiada exitosamente
               </div>
             ) : (
               <>
