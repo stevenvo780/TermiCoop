@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import type { DragEvent, RefObject } from 'react';
 import ReactGridLayout, { WidthProvider } from 'react-grid-layout/legacy';
 import { ArrowDownToLine, Columns2, Grid2x2, Hexagon, Plus, Square, X } from 'lucide-react';
@@ -30,11 +30,13 @@ function TerminalSlot({
   className,
   isActive,
   onDrop,
+  onRelease,
 }: {
   instance: TerminalInstance;
   className?: string;
   isActive?: boolean;
   onDrop?: (e: DragEvent<HTMLDivElement>) => void;
+  onRelease?: (container: HTMLDivElement) => void;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -57,8 +59,15 @@ function TerminalSlot({
       requestAnimationFrame(() => {
         instance.fitAddon.fit();
       });
+
+      // Cleanup: when instance changes or component unmounts, release the container
+      return () => {
+        if (onRelease) {
+          onRelease(container);
+        }
+      };
     }
-  }, [instance]);
+  }, [instance, onRelease]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -159,6 +168,14 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
     dispatch(setGridSessionIds(nextSlots));
   };
 
+  // Callback to return the container to the hidden pool when it is removed from a slot
+  const handleSlotRelease = useCallback((container: HTMLDivElement) => {
+    if (containerRef?.current) {
+      containerRef.current.appendChild(container);
+      container.style.display = 'none';
+    }
+  }, [containerRef]);
+
   const gridSlots = useMemo(() => (
     layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3]
   ), [layoutMode]);
@@ -201,7 +218,11 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
       }
 
       return activeInstance ? (
-        <TerminalSlot instance={activeInstance} isActive />
+        <TerminalSlot
+          instance={activeInstance}
+          isActive
+          onRelease={handleSlotRelease}
+        />
       ) : null;
     }
 
@@ -232,6 +253,7 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
                     instance={instance}
                     isActive={sessionId === activeSessionId}
                     onDrop={handleDropOnSlot(slotIndex)}
+                    onRelease={handleSlotRelease}
                   />
                   <button
                     className="grid-slot-remove"
