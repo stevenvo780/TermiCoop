@@ -1,14 +1,12 @@
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   clearAuth,
-  setShowInstallModal,
   setShowChangePasswordModal,
   setShowSettings,
   setShowUserMenu,
   setShowWorkerModal,
   setEditingWorker,
 } from '../../store';
-import type { Worker } from '../../store/slices/workersSlice';
 import {
   Download,
   KeyRound,
@@ -16,7 +14,6 @@ import {
   Maximize2,
   Minimize2,
   Play,
-  Plus,
   Settings,
   Smartphone,
   User,
@@ -25,7 +22,6 @@ import {
 import './TopBar.css';
 
 interface TopBarProps {
-  onSelectWorker: (workerId: string) => void;
   onResume: () => void;
   onFullscreen: () => void;
   onInstallPWA: () => void;
@@ -33,7 +29,6 @@ interface TopBarProps {
 }
 
 export function TopBar({
-  onSelectWorker,
   onResume,
   onFullscreen,
   onInstallPWA,
@@ -50,20 +45,6 @@ export function TopBar({
   const isFullscreen = useAppSelector((state) => state.ui.isFullscreen);
   const showSettingsMenu = useAppSelector((state) => state.ui.showSettings);
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const activeWorkerId = activeSession?.workerId || '';
-
-  const handleWorkerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (e.target.value) {
-      onSelectWorker(e.target.value);
-    }
-  };
-
-  const handleCreateWorker = () => {
-    dispatch(setEditingWorker(null));
-    dispatch(setShowWorkerModal(true));
-  };
-
   const handleToggleUserMenu = () => {
     dispatch(setShowUserMenu(!showUserMenu));
     if (!showUserMenu) {
@@ -79,7 +60,8 @@ export function TopBar({
   };
 
   const handleInstallWorker = () => {
-    dispatch(setShowInstallModal(true));
+    dispatch(setEditingWorker(null));
+    dispatch(setShowWorkerModal(true));
     dispatch(setShowSettings(false));
   };
 
@@ -110,29 +92,6 @@ export function TopBar({
         <span className="brand-icon">
           <Hexagon />
         </span>
-      </div>
-
-      <div className="control-group">
-        <label>Worker</label>
-        <select
-          value={activeWorkerId}
-          onChange={handleWorkerChange}
-          disabled={!workers.length}
-        >
-          <option value="">Seleccionar worker</option>
-          {workers.map((w: Worker) => (
-            <option key={w.id} value={w.id}>
-              {w.name}{w.status === 'offline' ? ' (offline)' : ''}
-            </option>
-          ))}
-        </select>
-        <button
-          className="ghost-btn icon-only"
-          title="Crear nuevo worker"
-          onClick={handleCreateWorker}
-        >
-          <Plus />
-        </button>
       </div>
 
       <div className="topbar-stats">

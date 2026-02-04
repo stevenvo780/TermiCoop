@@ -492,7 +492,6 @@ function AppContent() {
   return (
     <div className="layout">
       <TopBar
-        onSelectWorker={handleSelectWorker}
         onResume={handleResume}
         onFullscreen={handleFullscreen}
         onInstallPWA={handleInstallPWA}
