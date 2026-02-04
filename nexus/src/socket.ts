@@ -76,6 +76,11 @@ export const initSocket = (httpServer: any) => {
       origin: '*',
       methods: ['GET', 'POST'],
     },
+    // Enforce compression for terminal streams
+    perMessageDeflate: {
+      threshold: 1024,
+    },
+    httpCompression: true,
   });
 
   const emitWorkerList = (socket: Socket, list: any[]) => {

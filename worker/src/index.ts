@@ -335,9 +335,35 @@ function createShellForSession(
     env: shellEnv as any
   });
 
-  shell.onData((data) => {
+  // Buffer output to prevent packet storms
+  const FLUSH_DELAY_MS = 10;
+  const MAX_BUFFER_SIZE = 4096;
+
+  // Using global/outer scope maps for buffers if they don't exist yet, 
+  // but here we can attach them to the shell or keep local since this function is closure-heavy.
+  // However, to avoid complexity with closures, we'll keep simple local variables for this shell instance.
+  let outputBuffer = '';
+  let flushTimer: NodeJS.Timeout | null = null;
+
+  const flush = () => {
+    if (!outputBuffer) return;
     if (socket && socket.connected) {
-      socket.emit('output', { sessionId, output: data });
+      socket.emit('output', { sessionId, output: outputBuffer });
+    }
+    outputBuffer = '';
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+  };
+
+  shell.onData((data) => {
+    outputBuffer += data;
+
+    if (outputBuffer.length > MAX_BUFFER_SIZE) {
+      flush();
+    } else if (!flushTimer) {
+      flushTimer = setTimeout(flush, FLUSH_DELAY_MS);
     }
   });
 
