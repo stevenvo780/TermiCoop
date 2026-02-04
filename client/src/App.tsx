@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from './store/hooks';
 import {
   setConnectionState,
   setWorkers,
+  addWorker,
   setCurrentUser,
   logoutAndReset,
   setNeedsSetup,
@@ -16,6 +17,7 @@ import {
   setActiveSession,
   removeSession,
   updateSession,
+  removeWorker,
   addSession,
   setOfflineSessionIds,
   updateSessionOutput,
@@ -292,6 +294,9 @@ function AppContent() {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
+        const sessionsToClose = sessions.filter((session) => session.workerId === worker.id);
+        sessionsToClose.forEach((session) => handleCloseSession(session.id));
+        dispatch(removeWorker(worker.id));
         dispatch(closeDialog());
       } else {
         const err = await res.json();
@@ -308,7 +313,7 @@ function AppContent() {
         tone: 'danger',
       }));
     }
-  }, [token, dispatch]);
+  }, [token, dispatch, sessions, handleCloseSession]);
 
   // Resume session
   const handleResume = useCallback(() => {
@@ -580,7 +585,6 @@ function AppContent() {
         <Sidebar
           onSelectWorker={handleSelectWorker}
           onNewSession={handleNewSession}
-          onDeleteWorker={handleDeleteWorker}
         />
         <TerminalGrid
           instancesRef={terminalInstancesRef}
@@ -602,7 +606,9 @@ function AppContent() {
         <InstallWorkerModal
           initialWorker={editingWorker}
           onClose={() => dispatch({ type: 'ui/setShowWorkerModal', payload: false })}
-          onWorkerCreated={() => { }}
+          onWorkerCreated={(worker) => {
+            dispatch(addWorker(worker));
+          }}
           nexusUrl={NEXUS_URL}
           token={token}
         />

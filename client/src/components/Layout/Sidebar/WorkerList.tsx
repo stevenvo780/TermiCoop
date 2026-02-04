@@ -14,10 +14,9 @@ import './WorkerList.css';
 interface WorkerListProps {
   onSelectWorker: (workerId: string) => void;
   onNewSession: (workerId: string) => void;
-  onDeleteWorker: (worker: Worker) => void;
 }
 
-export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: WorkerListProps) {
+export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
   const dispatch = useAppDispatch();
   const workerQuery = useAppSelector((state) => state.workers.workerQuery);
   const workerTags = useAppSelector((state) => state.workers.workerTags);
@@ -35,7 +34,6 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
         { label: 'Eliminar', variant: 'danger', actionId: `delete-worker-${worker.id}` },
       ],
     }));
-    onDeleteWorker(worker);
   };
 
   const handleInstallWorker = (worker: Worker) => {
@@ -43,10 +41,6 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
     dispatch(setShowWorkerModal(true));
   };
 
-  const handleNewWorker = () => {
-    dispatch(setEditingWorker(null));
-    dispatch(setShowWorkerModal(true));
-  };
 
   return (
     <div className="sidebar-section">
@@ -58,20 +52,10 @@ export function WorkerList({ onSelectWorker, onNewSession, onDeleteWorker }: Wor
           value={workerQuery}
           onChange={(e) => dispatch(setWorkerQuery(e.target.value))}
         />
-        <button className="worker-add-btn" type="button" onClick={handleNewWorker} title="Conectar worker">
-          <Plus />
-          <span>Conectar</span>
-        </button>
       </div>
 
       {filteredWorkers.length === 0 && (
-        <div className="empty-workers">
-          <div className="empty-sessions">No hay workers</div>
-          <button className="worker-add-btn" type="button" onClick={handleNewWorker}>
-            <Plus />
-            <span>Conectar worker</span>
-          </button>
-        </div>
+        <div className="empty-sessions">No hay workers</div>
       )}
 
       {filteredWorkers.length > 0 && filteredWorkers.map((worker: Worker) => {

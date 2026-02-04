@@ -1,35 +1,49 @@
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { toggleSidebar } from '../../../store';
+import { toggleSidebar, setEditingWorker, setShowWorkerModal } from '../../../store';
 import { WorkerList } from './WorkerList';
-import type { Worker } from '../../../store/slices/workersSlice';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
   onSelectWorker: (workerId: string) => void;
   onNewSession: (workerId: string) => void;
-  onDeleteWorker: (worker: Worker) => void;
 }
 
 export function Sidebar({
   onSelectWorker,
   onNewSession,
-  onDeleteWorker,
 }: SidebarProps) {
   const dispatch = useAppDispatch();
   const sidebarCollapsed = useAppSelector((state) => state.ui.sidebarCollapsed);
+  const handleCreateWorker = () => {
+    dispatch(setEditingWorker(null));
+    dispatch(setShowWorkerModal(true));
+  };
 
   return (
     <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <h3>Workers</h3>
-        <button
-          className="collapse-btn"
-          onClick={() => dispatch(toggleSidebar())}
-          title={sidebarCollapsed ? 'Expandir' : 'Colapsar'}
-        >
-          {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
-        </button>
+        <div className="sidebar-header-actions">
+          {!sidebarCollapsed && (
+            <button
+              className="worker-create-btn"
+              onClick={handleCreateWorker}
+              title="Crear worker"
+              type="button"
+            >
+              <Plus />
+            </button>
+          )}
+          <button
+            className="collapse-btn"
+            onClick={() => dispatch(toggleSidebar())}
+            title={sidebarCollapsed ? 'Expandir' : 'Colapsar'}
+            type="button"
+          >
+            {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
+          </button>
+        </div>
       </div>
 
       {!sidebarCollapsed && (
@@ -37,7 +51,6 @@ export function Sidebar({
           <WorkerList
             onSelectWorker={onSelectWorker}
             onNewSession={onNewSession}
-            onDeleteWorker={onDeleteWorker}
           />
         </div>
       )}

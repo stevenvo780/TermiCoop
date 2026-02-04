@@ -1,8 +1,6 @@
 /* WorkerList Styles */
 .worker-tools {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -27,38 +25,6 @@
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
 }
 
-.worker-add-btn {
-  background: #0c1117;
-  color: #9fb3c8;
-  border: 1px solid rgba(36, 52, 71, 0.6);
-  padding: 9px 10px;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 150ms ease;
-}
-
-.worker-add-btn svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 1.8;
-}
-
-.worker-add-btn:hover {
-  border-color: rgba(96, 165, 250, 0.6);
-  color: #e7e7e7;
-  background: rgba(96, 165, 250, 0.12);
-}
-
-.empty-workers {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-}
 
 .worker-group {
   display: flex;
