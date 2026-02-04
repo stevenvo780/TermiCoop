@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import { WorkerModel } from '../models/worker.model';
 import { UserModel } from '../models/user.model';
@@ -5,7 +6,7 @@ import { UserModel } from '../models/user.model';
 export class WorkerController {
   static async list(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
-    const workers = WorkerModel.getAccessibleWorkers(req.user.userId);
+    const workers = await WorkerModel.getAccessibleWorkers(req.user.userId);
     res.json(workers);
   }
 
@@ -14,7 +15,7 @@ export class WorkerController {
     const { name } = req.body;
     if (!name) { res.status(400).json({ error: 'Name required' }); return; }
 
-    const worker = WorkerModel.create(req.user.userId, name);
+    const worker = await WorkerModel.create(req.user.userId, name);
     res.json(worker);
   }
 
@@ -24,7 +25,7 @@ export class WorkerController {
 
     if (!targetUsername) { res.status(400).json({ error: 'Username required' }); return; }
 
-    const worker = WorkerModel.findById(workerId);
+    const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
@@ -32,7 +33,7 @@ export class WorkerController {
       return;
     }
 
-    const targetUser = UserModel.findByUsername(targetUsername);
+    const targetUser = await UserModel.findByUsername(targetUsername);
     if (!targetUser) { res.status(404).json({ error: 'User not found' }); return; }
 
     if (targetUser.id === worker.owner_id) {
@@ -40,7 +41,7 @@ export class WorkerController {
       return;
     }
 
-    WorkerModel.share(workerId, targetUser.id, permission || 'view');
+    await WorkerModel.share(workerId, targetUser.id, permission || 'view');
     res.json({ success: true, user: { id: targetUser.id, username: targetUser.username, permission: permission || 'view' } });
   }
 
@@ -48,7 +49,7 @@ export class WorkerController {
     if (!req.user) { res.status(401).send(); return; }
     const workerId = req.params.id as string;
 
-    const worker = WorkerModel.findById(workerId);
+    const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
@@ -56,7 +57,7 @@ export class WorkerController {
       return;
     }
 
-    const shares = WorkerModel.getShares(workerId);
+    const shares = await WorkerModel.getShares(workerId);
     res.json(shares);
   }
 
@@ -64,7 +65,7 @@ export class WorkerController {
     if (!req.user) { res.status(401).send(); return; }
     const { workerId, targetUserId } = req.body;
 
-    const worker = WorkerModel.findById(workerId);
+    const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
@@ -72,7 +73,7 @@ export class WorkerController {
       return;
     }
 
-    WorkerModel.unshare(workerId, targetUserId);
+    await WorkerModel.unshare(workerId, targetUserId);
     res.json({ success: true });
   }
 
@@ -80,7 +81,7 @@ export class WorkerController {
     if (!req.user) { res.status(401).send(); return; }
     const id = req.params.id as string;
 
-    const worker = WorkerModel.findById(id);
+    const worker = await WorkerModel.findById(id);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
 
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
@@ -93,7 +94,7 @@ export class WorkerController {
       return;
     }
 
-    WorkerModel.delete(id);
+    await WorkerModel.delete(id);
     res.json({ success: true });
   }
 }

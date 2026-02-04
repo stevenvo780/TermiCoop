@@ -7,8 +7,10 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
 import { ShareModal } from './components/ShareModal';
+import { InstallWorkerModal } from './components/InstallWorkerModal';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 
-interface Worker {
+export interface Worker {
   id: string;
   socketId: string;
   name: string;
@@ -90,9 +92,7 @@ function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [token, setToken] = useState<string | null>(null);
-  const [showAddWorkerModal, setShowAddWorkerModal] = useState<boolean>(false);
-  const [newWorkerName, setNewWorkerName] = useState('');
-  const [createdWorker, setCreatedWorker] = useState<Worker | null>(null);
+  // const [createdWorker, setCreatedWorker] = useState<Worker | null>(null);
 
   const [needsSetup, setNeedsSetup] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -110,10 +110,11 @@ function App() {
   const [commandTab, setCommandTab] = useState<'history' | 'snippets'>('history');
   const [commandHistory, setCommandHistory] = useState<Record<string, string[]>>({});
   const [commandSnippets, setCommandSnippets] = useState<Record<string, CommandSnippet[]>>({});
-  const [tagModalWorker, setTagModalWorker] = useState<Worker | null>(null);
+  const [, setTagModalWorker] = useState<Worker | null>(null);
   const [shareModalWorker, setShareModalWorker] = useState<Worker | null>(null);
-  const [installWorkerModal, setInstallWorkerModal] = useState<Worker | null>(null);
-  const [tagModalInput, setTagModalInput] = useState<string>('');
+  const [showWorkerModal, setShowWorkerModal] = useState<boolean>(false);
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+  const [, setTagModalInput] = useState<string>('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showDropOverlay, setShowDropOverlay] = useState<boolean>(false);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
@@ -121,6 +122,9 @@ function App() {
   const [installToken, setInstallToken] = useState<string>('TU_WORKER_TOKEN');
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [dialogLoading, setDialogLoading] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<{ userId: number; username: string; isAdmin: boolean } | null>(null);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState<boolean>(false);
+  const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
 
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -144,7 +148,7 @@ function App() {
   const hadSessionsRef = useRef<boolean>(false);
 
   const normalizeWorkerKey = useCallback((name: string) => name.trim().toLowerCase(), []);
-  const resolvedWorkerToken = createdWorker?.api_key || 'TU_WORKER_TOKEN';
+  const resolvedWorkerToken = 'TU_WORKER_TOKEN';
 
   const parseStored = <T,>(value: string | null, fallback: T): T => {
     if (!value) return fallback;
@@ -216,11 +220,7 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    if (createdWorker?.api_key) {
-      setInstallToken(createdWorker.api_key);
-    }
-  }, [createdWorker]);
+
 
   const copyCommand = async (id: string, value: string) => {
     try {
@@ -477,7 +477,12 @@ function App() {
         if (!res.ok) throw new Error('Invalid token');
         return res.json();
       })
-      .then(() => initSocket(storedToken))
+      .then((data) => {
+        if (data.user) {
+          setCurrentUser(data.user);
+        }
+        initSocket(storedToken);
+      })
       .catch(() => {
         setToken(null);
         localStorage.removeItem(AUTH_KEY);
@@ -694,6 +699,8 @@ function App() {
     setShowSettings(false);
     setConnectionState('disconnected');
     setAuthError(message || null);
+    setCurrentUser(null);
+    setShowUserMenu(false);
     socketRef.current?.disconnect();
     setSocket(null);
   };
@@ -1129,11 +1136,7 @@ function App() {
   const activeSnippets = activeWorkerKey ? commandSnippets[activeWorkerKey] || [] : [];
   const activeSessionOffline = activeSessionId ? offlineSessions.has(activeSessionId) : false;
 
-  const parseTagsInput = (value: string) =>
-    value
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean);
+
 
   const editWorkerTags = (worker: Worker) => {
     const workerKey = normalizeWorkerKey(worker.name);
@@ -1142,14 +1145,9 @@ function App() {
     setTagModalWorker(worker);
   };
 
-  const saveWorkerTags = () => {
-    if (!tagModalWorker) return;
-    const workerKey = normalizeWorkerKey(tagModalWorker.name);
-    const parsed = parseTagsInput(tagModalInput);
-    setWorkerTags((prev) => ({ ...prev, [workerKey]: parsed }));
-    setTagModalWorker(null);
-    setTagModalInput('');
-  };
+
+
+
 
 
 
@@ -1509,82 +1507,9 @@ function App() {
     }
   };
 
-  const createWorker = async () => {
-    if (!newWorkerName) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`${NEXUS_URL}/api/workers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: newWorkerName })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setCreatedWorker(data);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Ocurrio un error al crear el worker.';
-      openDialog({
-        title: 'No se pudo crear el worker',
-        message,
-        tone: 'danger',
-        actions: [{ label: 'Cerrar', variant: 'primary', onClick: closeDialog }],
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
 
-  const renderAddWorkerModal = () => {
-    if (!showAddWorkerModal) return null;
-    return (
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex',
-        alignItems: 'center', justifyContent: 'center'
-      }}>
-        <div className="setup-container" style={{ width: '500px', maxWidth: '90%' }}>
-          <div className="setup-form" style={{ background: '#1e1e1e', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ marginTop: 0 }}>Create New Worker</h3>
-            {!createdWorker ? (
-              <>
-                <p>Enter a name appropriately describing the worker (e.g. "Prod Database").</p>
-                <input
-                  value={newWorkerName}
-                  onChange={e => setNewWorkerName(e.target.value)}
-                  placeholder="Worker Name"
-                  style={{
-                    background: '#333', border: '1px solid #444',
-                    padding: '10px', color: '#fff', width: '100%', marginBottom: '10px',
-                    borderRadius: '4px'
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && createWorker()}
-                />
-                <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                  <button className="secondary" onClick={() => setShowAddWorkerModal(false)} style={{ background: 'transparent', border: '1px solid #555' }}>Cancel</button>
-                  <button onClick={createWorker} disabled={!newWorkerName || busy} style={{ background: '#007acc' }}>Create</button>
-                </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'left' }}>
-                <p style={{ color: '#4caf50', fontWeight: 'bold' }}>✅ Worker Created!</p>
-                <div style={{ background: '#111', padding: '10px', margin: '5px 0', wordBreak: 'break-all', userSelect: 'all', border: '1px solid #333' }}>{createdWorker.api_key}</div>
-                <h4 style={{ marginTop: '20px', color: '#fff' }}>Install Command:</h4>
-                <div style={{ background: '#000', padding: '15px', color: '#0f0', overflowX: 'auto', whiteSpace: 'pre-wrap', border: '1px solid #333' }}>
-                  curl -fsSL {NEXUS_URL}/install.sh | sudo bash -s -- {createdWorker.api_key}
-                </div>
-                <div className="actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => { setCreatedWorker(null); setNewWorkerName(''); setShowAddWorkerModal(false); }} style={{ background: '#4caf50' }}>Done</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+
+
 
   const renderDialog = () => {
     if (!dialog) return null;
@@ -1860,7 +1785,8 @@ function App() {
                               className="install-worker-btn"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setInstallWorkerModal(worker);
+                                setEditingWorker(worker);
+                                setShowWorkerModal(true);
                               }}
                               title="Ver instrucciones de instalación"
                               style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2em' }}
@@ -2009,9 +1935,10 @@ function App() {
         </select>
         <button
           className="ghost-btn"
-          onClick={() => setShowAddWorkerModal(true)}
+          title="Crear nuevo worker"
+          onClick={() => { setEditingWorker(null); setShowWorkerModal(true); }}
           style={{ marginLeft: '5px', padding: '0 8px', fontSize: '1.2em' }}
-          title="Add New Worker"
+
         >
           +
         </button>
@@ -2056,6 +1983,37 @@ function App() {
           {connectionState === 'reconnecting' && 'Reconectando...'}
           {connectionState === 'disconnected' && 'Desconectado'}
         </div>
+        {token && currentUser && (
+          <div className="user-menu-container">
+            <button
+              className="user-menu-btn"
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              title={currentUser.username}
+            >
+              👤 {currentUser.username}
+            </button>
+            {showUserMenu && (
+              <div className="user-menu-dropdown">
+                <div className="user-menu-header">
+                  <span className="user-menu-username">{currentUser.username}</span>
+                  {currentUser.isAdmin && <span className="user-menu-badge">Admin</span>}
+                </div>
+                <button
+                  className="user-menu-item"
+                  onClick={() => { setShowChangePasswordModal(true); setShowUserMenu(false); }}
+                >
+                  🔑 Cambiar Contraseña
+                </button>
+                <button
+                  className="user-menu-item logout"
+                  onClick={() => { clearAuth(); setShowUserMenu(false); }}
+                >
+                  🚪 Cerrar Sesión
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {token && <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙</button>}
       </div>
     </div>
@@ -2141,7 +2099,7 @@ function App() {
 
   return (
     <div className="layout">
-      {renderAddWorkerModal()}
+
       {renderControls()}
       {renderInstallHelp()}
       {renderDialog()}
@@ -2156,102 +2114,8 @@ function App() {
           </div>
         </div>
       )}
-      {tagModalWorker && (
-        <div className="modal-overlay" onClick={() => setTagModalWorker(null)}>
-          <div className="modal tag-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Editar Worker</h3>
-              <button className="close-btn" onClick={() => setTagModalWorker(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="worker-info">
-                <strong>{tagModalWorker.name}</strong>
-                <span className={`status-badge ${tagModalWorker.status}`}>
-                  {tagModalWorker.status === 'offline' ? 'Desconectado' : 'Conectado'}
-                </span>
-              </div>
-              <label className="form-label">
-                Tags (separadas por coma)
-                <input
-                  type="text"
-                  className="form-input"
-                  value={tagModalInput}
-                  onChange={(e) => setTagModalInput(e.target.value)}
-                  placeholder="produccion, backend, aws..."
-                  onKeyDown={(e) => e.key === 'Enter' && saveWorkerTags()}
-                />
-              </label>
-              <div className="modal-actions">
-                <button className="btn-primary" onClick={saveWorkerTags}>
-                  Guardar Tags
-                </button>
-                {tagModalWorker.status === 'offline' && (
-                  <button
-                    className="btn-danger"
-                    onClick={() => confirmDeleteWorker(tagModalWorker)}
-                  >
-                    Eliminar Worker
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {installWorkerModal && (
-        <div className="modal-overlay" onClick={() => setInstallWorkerModal(null)}>
-          <div className="modal install-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Conectar Worker: {installWorkerModal.name}</h3>
-              <button className="close-btn" onClick={() => setInstallWorkerModal(null)}>✕</button>
-            </div>
-            <div className="modal-body install-grid">
-              <div className="helper-card">
-                <p style={{ marginTop: 0, color: '#ff9800' }}>
-                  ⚠️ Este worker está <strong>desconectado</strong>. Ejecuta el siguiente comando en el servidor para conectarlo.
-                </p>
-                <div className="helper-label">Token/API Key</div>
-                <code className="helper-code" style={{ wordBreak: 'break-all' }}>{installWorkerModal.api_key}</code>
-              </div>
-              <div className="helper-card">
-                <div className="helper-label">Debian/Ubuntu</div>
-                <code className="helper-code">{`curl -fsSL ${NEXUS_URL}/install.sh | NEXUS_URL=${NEXUS_URL} bash -s -- ${installWorkerModal.api_key}`}</code>
-                <div className="helper-row">
-                  <a
-                    href={`${NEXUS_URL}/api/downloads/latest/worker-linux.deb`}
-                    className="mini-btn"
-                    style={{ textDecoration: 'none', display: 'inline-block' }}
-                    download
-                  >
-                    ⬇ Descargar .deb
-                  </a>
-                  <button
-                    className="mini-btn"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`curl -fsSL ${NEXUS_URL}/install.sh | NEXUS_URL=${NEXUS_URL} bash -s -- ${installWorkerModal.api_key}`);
-                    }}
-                  >
-                    Copiar
-                  </button>
-                </div>
-                <div className="helper-label" style={{ marginTop: 10 }}>RHEL/CentOS/Fedora</div>
-                <code className="helper-code">{`curl -fsSL ${NEXUS_URL}/api/downloads/latest/worker-linux.rpm -o worker.rpm && sudo rpm -Uvh worker.rpm`}</code>
-                <div className="helper-row">
-                  <a
-                    href={`${NEXUS_URL}/api/downloads/latest/worker-linux.rpm`}
-                    className="mini-btn"
-                    style={{ textDecoration: 'none', display: 'inline-block' }}
-                    download
-                  >
-                    ⬇ Descargar .rpm
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {
         shareModalWorker && (
@@ -2359,14 +2223,40 @@ function App() {
           )}
         </div>
       </div>
-      {renamingSessionId && (
-        <RenameSessionModal
-          isOpen={!!renamingSessionId}
-          initialName={sessions.find(s => s.id === renamingSessionId)?.displayName || ''}
-          onClose={() => setRenamingSessionId(null)}
-          onSave={handleRenameSave}
-        />
-      )}
+      {
+        renamingSessionId && (
+          <RenameSessionModal
+            isOpen={!!renamingSessionId}
+            initialName={sessions.find(s => s.id === renamingSessionId)?.displayName || ''}
+            onClose={() => setRenamingSessionId(null)}
+            onSave={handleRenameSave}
+          />
+        )
+      }
+      {
+        showWorkerModal && (
+          <InstallWorkerModal
+            initialWorker={editingWorker}
+            onClose={() => setShowWorkerModal(false)}
+            onWorkerCreated={() => {
+              // Optionally refresh list or just let socket update do it
+            }}
+            nexusUrl={NEXUS_URL}
+            token={token || ''}
+          />
+        )
+      }
+
+      {
+        showChangePasswordModal && token && (
+          <ChangePasswordModal
+            onClose={() => setShowChangePasswordModal(false)}
+            onSuccess={() => { }}
+            nexusUrl={NEXUS_URL}
+            token={token}
+          />
+        )
+      }
     </div >
   );
 }

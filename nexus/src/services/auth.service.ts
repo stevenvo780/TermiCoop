@@ -1,17 +1,19 @@
-import { UserModel } from '../models/user.model';
+
+import { UserModel, User } from '../models/user.model';
 import { verifyPassword } from '../utils/crypto';
 import { signToken, JwtPayload } from '../utils/jwt';
 
 export class AuthService {
   static async login(username: string | undefined, password: string) {
-    let user: ReturnType<typeof UserModel.findByUsername> | undefined;
+    let user: User | undefined;
     if (username) {
-      user = UserModel.findByUsername(username.trim());
+      user = await UserModel.findByUsername(username.trim());
       if (!user) {
         throw new Error('Invalid credentials');
       }
     } else {
-      user = UserModel.findFirstAdmin() || UserModel.findFirstUser();
+      const admin = await UserModel.findFirstAdmin();
+      user = admin || await UserModel.findFirstUser();
       if (!user) {
         throw new Error('Invalid credentials');
       }
@@ -32,24 +34,28 @@ export class AuthService {
   }
 
   static async register(username: string, password: string, forceAdmin = false) {
-    if (UserModel.findByUsername(username)) {
+    if (await UserModel.findByUsername(username)) {
       throw new Error('Username already exists');
     }
-    
-    const isFirstUser = UserModel.findById(1) === undefined;
-    const user = UserModel.create(username, password, forceAdmin || isFirstUser);
-    
+
+    // Check if it's the first user by ID=1 or just count?
+    // Using findById(1) assumes ID starts at 1. Postgres/SQLite usually do.
+    const firstUser = await UserModel.findById(1);
+    const isFirstUser = firstUser === undefined;
+
+    const user = await UserModel.create(username, password, forceAdmin || isFirstUser);
+
     const payload: JwtPayload = {
       userId: user.id,
       username: user.username,
       isAdmin: user.is_admin === 1
     };
-    
+
     return { token: signToken(payload), user: payload };
   }
 
   static async changePassword(userId: number, currentPassword: string, newPassword: string) {
-    const user = UserModel.findById(userId);
+    const user = await UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -57,6 +63,6 @@ export class AuthService {
     if (!isValid) {
       throw new Error('Current password is incorrect');
     }
-    UserModel.updatePassword(userId, newPassword);
+    await UserModel.updatePassword(userId, newPassword);
   }
 }

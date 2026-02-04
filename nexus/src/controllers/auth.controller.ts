@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { UserModel } from '../models/user.model';
@@ -21,12 +22,12 @@ export class AuthController {
     try {
       const { username, password, setupToken } = req.body;
       if (!username || !password) {
-          res.status(400).json({ error: 'Username and password required' });
-          return;
+        res.status(400).json({ error: 'Username and password required' });
+        return;
       }
       if (password.length < 6) {
-          res.status(400).json({ error: 'Password too short' });
-          return;
+        res.status(400).json({ error: 'Password too short' });
+        return;
       }
       const requiredToken = (process.env.NEXUS_SETUP_TOKEN || '').trim();
       if (requiredToken && setupToken !== requiredToken) {
@@ -39,9 +40,9 @@ export class AuthController {
       res.status(400).json({ error: err.message });
     }
   }
-  
+
   static async getMe(req: Request, res: Response) {
-      res.json({ user: req.user });
+    res.json({ user: req.user });
   }
 
   static async setup(req: Request, res: Response) {
@@ -52,7 +53,8 @@ export class AuthController {
         return;
       }
       const requiredToken = (process.env.NEXUS_SETUP_TOKEN || '').trim();
-      if (UserModel.count() > 0) {
+      const userCount = await UserModel.count();
+      if (userCount > 0) {
         res.status(400).json({ error: 'Already configured' });
         return;
       }
@@ -87,11 +89,11 @@ export class AuthController {
   }
 
   static async status(req: Request, res: Response) {
-      const userCount = UserModel.count();
-      res.json({
-        status: 'ok',
-        needsSetup: userCount === 0,
-        setupTokenRequired: Boolean((process.env.NEXUS_SETUP_TOKEN || '').trim())
-      });
+    const userCount = await UserModel.count();
+    res.json({
+      status: 'ok',
+      needsSetup: userCount === 0,
+      setupTokenRequired: Boolean((process.env.NEXUS_SETUP_TOKEN || '').trim())
+    });
   }
 }

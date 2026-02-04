@@ -61,6 +61,12 @@ build_binaries() {
     cd "$PROJECT_ROOT/client"
     npm run build
     log_success "Client built"
+
+    # Create source tarball for fallback installation
+    log_info "Creating source tarball..."
+    cd "$PROJECT_ROOT"
+    tar --exclude='worker/node_modules' --exclude='worker/dist' --exclude='worker/.env' -czf "$BUILD_DIR/ultimate-terminal-worker-source.tar.gz" worker
+    log_success "Source tarball created: ultimate-terminal-worker-source.tar.gz"
 }
 
 build_deb() {

@@ -1,3 +1,4 @@
+
 import db from '../config/database';
 import { hashPassword } from '../utils/crypto';
 
@@ -11,19 +12,23 @@ export interface User {
 }
 
 export class UserModel {
-  static create(username: string, password: string, isAdmin: boolean = false): User {
+  static async create(username: string, password: string, isAdmin: boolean = false): Promise<User> {
     const { hash, salt } = hashPassword(password);
     const createdAt = new Date().toISOString();
-    
-    const stmt = db.prepare(`
+
+    // In Postgres, we might want 'RETURNING id' but our adapter tries to handle lastInsertId.
+    // For Users, ID is serial/autoincrement.
+
+    const result = await db.run(`
       INSERT INTO users (username, password_hash, salt, is_admin, created_at)
       VALUES (?, ?, ?, ?, ?)
-    `);
-    
-    const info = stmt.run(username, hash, salt, isAdmin ? 1 : 0, createdAt);
-    
+    `, [username, hash, salt, isAdmin ? 1 : 0, createdAt]);
+
+    // lastInsertId might be bigint or string.
+    const id = Number(result.lastInsertId);
+
     return {
-      id: info.lastInsertRowid as number,
+      id,
       username,
       password_hash: hash,
       salt,
@@ -32,29 +37,29 @@ export class UserModel {
     };
   }
 
-  static findByUsername(username: string): User | undefined {
-    return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as User | undefined;
+  static async findByUsername(username: string): Promise<User | undefined> {
+    return db.get<User>('SELECT * FROM users WHERE username = ?', [username]);
   }
 
-  static findById(id: number): User | undefined {
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
+  static async findById(id: number): Promise<User | undefined> {
+    return db.get<User>('SELECT * FROM users WHERE id = ?', [id]);
   }
 
-  static findFirstAdmin(): User | undefined {
-    return db.prepare('SELECT * FROM users WHERE is_admin = 1 ORDER BY id ASC LIMIT 1').get() as User | undefined;
+  static async findFirstAdmin(): Promise<User | undefined> {
+    return db.get<User>('SELECT * FROM users WHERE is_admin = 1 ORDER BY id ASC LIMIT 1');
   }
 
-  static findFirstUser(): User | undefined {
-    return db.prepare('SELECT * FROM users ORDER BY id ASC LIMIT 1').get() as User | undefined;
+  static async findFirstUser(): Promise<User | undefined> {
+    return db.get<User>('SELECT * FROM users ORDER BY id ASC LIMIT 1');
   }
 
-  static count(): number {
-    const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-    return row?.count || 0;
+  static async count(): Promise<number> {
+    const row = await db.get<{ count: number | string }>('SELECT COUNT(*) as count FROM users');
+    return row ? Number(row.count) : 0;
   }
 
-  static updatePassword(id: number, newPassword: string) {
+  static async updatePassword(id: number, newPassword: string): Promise<void> {
     const { hash, salt } = hashPassword(newPassword);
-    db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, id);
+    await db.run('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?', [hash, salt, id]);
   }
 }

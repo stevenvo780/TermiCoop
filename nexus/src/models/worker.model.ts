@@ -1,3 +1,4 @@
+
 import crypto from 'crypto';
 import db from '../config/database';
 import { generateApiKey } from '../utils/crypto';
@@ -18,18 +19,15 @@ export interface WorkerShare {
 }
 
 export class WorkerModel {
-  static create(ownerId: number, name: string, id?: string, fixedApiKey?: string): Worker {
+  static async create(ownerId: number, name: string, id?: string, fixedApiKey?: string): Promise<Worker> {
     const workerId = id || crypto.randomUUID();
     const apiKey = fixedApiKey || generateApiKey();
     const now = Date.now();
 
-    const stmt = db.prepare(`
+    await db.run(`
       INSERT INTO workers (id, owner_id, name, api_key, status, last_seen)
       VALUES (?, ?, ?, ?, 'offline', ?)
-    `);
-
-    stmt.run(workerId, ownerId, name, apiKey, now);
-
+    `, [workerId, ownerId, name, apiKey, now]);
 
     return {
       id: workerId,
@@ -41,16 +39,25 @@ export class WorkerModel {
     };
   }
 
-  static findByApiKey(apiKey: string): Worker | undefined {
-    return db.prepare('SELECT * FROM workers WHERE api_key = ?').get(apiKey) as Worker | undefined;
+  static async findByApiKey(apiKey: string): Promise<Worker | undefined> {
+    const worker = await db.get<Worker>('SELECT * FROM workers WHERE api_key = ?', [apiKey]);
+    if (worker) {
+      // Ensure last_seen is number (it might be string/bigint from PG)
+      worker.last_seen = Number(worker.last_seen);
+    }
+    return worker;
   }
 
-  static findById(id: string): Worker | undefined {
-    return db.prepare('SELECT * FROM workers WHERE id = ?').get(id) as Worker | undefined;
+  static async findById(id: string): Promise<Worker | undefined> {
+    const worker = await db.get<Worker>('SELECT * FROM workers WHERE id = ?', [id]);
+    if (worker) {
+      worker.last_seen = Number(worker.last_seen);
+    }
+    return worker;
   }
 
-  static getAccessibleWorkers(userId: number): (Worker & { permission: string })[] {
-    const stmt = db.prepare(`
+  static async getAccessibleWorkers(userId: number): Promise<(Worker & { permission: string })[]> {
+    const result = await db.query<Worker & { permission: string }>(`
       SELECT w.*, 'admin' as permission 
       FROM workers w 
       WHERE w.owner_id = ?
@@ -61,56 +68,71 @@ export class WorkerModel {
       FROM workers w
       JOIN worker_shares ws ON w.id = ws.worker_id
       WHERE ws.user_id = ?
-    `);
+    `, [userId, userId]);
 
-    return stmt.all(userId, userId) as (Worker & { permission: string })[];
+    return result.rows.map(w => ({
+      ...w,
+      last_seen: Number(w.last_seen)
+    }));
   }
 
-  static share(workerId: string, userId: number, permission: 'view' | 'control' | 'admin') {
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO worker_shares (worker_id, user_id, permission)
+  static async share(workerId: string, userId: number, permission: 'view' | 'control' | 'admin'): Promise<void> {
+    // INSERT OR REPLACE is SQLite specific. Postgres uses ON CONFLICT.
+    // Standard SQL (or PG): INSERT ... ON CONFLICT (worker_id, user_id) DO UPDATE SET permission = ...
+    // Since we want to support both, we should upsert carefully.
+    // 'INSERT OR REPLACE' in SQLite replaces the row (deletes old).
+    // Postgres doesn't support 'OR REPLACE' directly (it's non-standard).
+
+    // Compatibility hack: Delete then Insert? Or check adapter type?
+    // DBAdapter converts ? to $1 but doesn't transpile SQL syntax.
+
+    // I will use UPSERT syntax if compatible or DB-specific logic.
+    // SQLite 3.24+ supports ON CONFLICT. better-sqlite3 likely has decent version.
+
+    // Try ON CONFLICT syntax which works in both Modern SQLite and Postgres.
+    await db.run(`
+      INSERT INTO worker_shares (worker_id, user_id, permission)
       VALUES (?, ?, ?)
-    `);
-    stmt.run(workerId, userId, permission);
+      ON CONFLICT(worker_id, user_id) DO UPDATE SET permission = excluded.permission
+    `, [workerId, userId, permission]);
   }
 
-  static unshare(workerId: string, userId: number) {
-    db.prepare('DELETE FROM worker_shares WHERE worker_id = ? AND user_id = ?').run(workerId, userId);
+  static async unshare(workerId: string, userId: number): Promise<void> {
+    await db.run('DELETE FROM worker_shares WHERE worker_id = ? AND user_id = ?', [workerId, userId]);
   }
 
-  static updateStatus(id: string, status: 'online' | 'offline') {
-    db.prepare('UPDATE workers SET status = ?, last_seen = ? WHERE id = ?')
-      .run(status, Date.now(), id);
+  static async updateStatus(id: string, status: 'online' | 'offline'): Promise<void> {
+    await db.run('UPDATE workers SET status = ?, last_seen = ? WHERE id = ?', [status, Date.now(), id]);
   }
 
-  static updateName(id: string, name: string) {
-    db.prepare('UPDATE workers SET name = ? WHERE id = ?').run(name, id);
+  static async updateName(id: string, name: string): Promise<void> {
+    await db.run('UPDATE workers SET name = ? WHERE id = ?', [name, id]);
   }
 
-  static delete(id: string) {
-    db.prepare('DELETE FROM worker_shares WHERE worker_id = ?').run(id);
-    db.prepare('DELETE FROM workers WHERE id = ?').run(id);
+  static async delete(id: string): Promise<void> {
+    await db.run('DELETE FROM worker_shares WHERE worker_id = ?', [id]);
+    await db.run('DELETE FROM workers WHERE id = ?', [id]);
   }
 
-  static hasAccess(userId: number, workerId: string, requiredPermission: 'view' | 'control' | 'admin' = 'view'): boolean {
-    const worker = this.findById(workerId);
+  static async hasAccess(userId: number, workerId: string, requiredPermission: 'view' | 'control' | 'admin' = 'view'): Promise<boolean> {
+    const worker = await this.findById(workerId);
     if (!worker) return false;
     if (worker.owner_id === userId) return true;
 
-    const share = db.prepare('SELECT permission FROM worker_shares WHERE worker_id = ? AND user_id = ?').get(workerId, userId) as { permission: string } | undefined;
+    const share = await db.get<{ permission: string }>('SELECT permission FROM worker_shares WHERE worker_id = ? AND user_id = ?', [workerId, userId]);
     if (!share) return false;
 
     const levels = { 'view': 1, 'control': 2, 'admin': 3 };
     return levels[share.permission as keyof typeof levels] >= levels[requiredPermission];
   }
 
-  static getShares(workerId: string): { userId: number; username: string; permission: string }[] {
-    const stmt = db.prepare(`
+  static async getShares(workerId: string): Promise<{ userId: number; username: string; permission: string }[]> {
+    const result = await db.query<{ userId: number; username: string; permission: string }>(`
       SELECT ws.user_id as userId, u.username, ws.permission
       FROM worker_shares ws
       JOIN users u ON ws.user_id = u.id
       WHERE ws.worker_id = ?
-    `);
-    return stmt.all(workerId) as { userId: number; username: string; permission: string }[];
+    `, [workerId]);
+    return result.rows;
   }
 }
