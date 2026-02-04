@@ -85,17 +85,23 @@ install_deb() {
     \${SUDO} apt-get \${APT_OPTS} install -f -y
   }
 
+  local tmp_deb
+  tmp_deb=\"\$(mktemp /tmp/worker.XXXXXX.deb)\"
   echo \"Descargando worker .deb...\"
-  curl -fL \"\${NEXUS_URL}/api/downloads/latest/worker-linux.deb?os=\${OS_ID}&version=\${VERSION_ID}&arch=\${ARCH_RAW}\" -o /tmp/worker.deb
+  curl -fL \"\${NEXUS_URL}/api/downloads/latest/worker-linux.deb?os=\${OS_ID}&version=\${VERSION_ID}&arch=\${ARCH_RAW}\" -o \"\${tmp_deb}\"
   echo \"Instalando...\"
-  \${SUDO} dpkg -i /tmp/worker.deb || apt_fix
+  \${SUDO} dpkg -i \"\${tmp_deb}\" || apt_fix
+  rm -f \"\${tmp_deb}\" || true
 }
 
 install_rpm() {
+  local tmp_rpm
+  tmp_rpm=\"\$(mktemp /tmp/worker.XXXXXX.rpm)\"
   echo \"Descargando worker .rpm...\"
-  curl -fL \"\${NEXUS_URL}/api/downloads/latest/worker-linux.rpm?os=\${OS_ID}&version=\${VERSION_ID}&arch=\${ARCH_RAW}\" -o /tmp/worker.rpm
+  curl -fL \"\${NEXUS_URL}/api/downloads/latest/worker-linux.rpm?os=\${OS_ID}&version=\${VERSION_ID}&arch=\${ARCH_RAW}\" -o \"\${tmp_rpm}\"
   echo \"Instalando...\"
-  \${SUDO} rpm -Uvh /tmp/worker.rpm
+  \${SUDO} rpm -Uvh \"\${tmp_rpm}\"
+  rm -f \"\${tmp_rpm}\" || true
 }
 
 case \"\${OS_ID}\" in

@@ -20,7 +20,8 @@ install -m 644 %{_sourcedir}/ultimate-terminal-worker.service %{buildroot}/usr/l
 cat > %{buildroot}/etc/ultimate-terminal/worker.env << 'EOF'
 # Ultimate Terminal Worker Configuration
 NEXUS_URL=http://localhost:3002
-WORKER_TOKEN=
+API_KEY=
+# WORKER_NAME=
 EOF
 chmod 600 %{buildroot}/etc/ultimate-terminal/worker.env
 
@@ -42,7 +43,8 @@ if [ ! -f /etc/ultimate-terminal/worker.env ]; then
     cat > /etc/ultimate-terminal/worker.env << 'EOF'
 # Ultimate Terminal Worker Configuration
 NEXUS_URL=http://localhost:3002
-WORKER_TOKEN=
+API_KEY=
+# WORKER_NAME=
 EOF
     chmod 600 /etc/ultimate-terminal/worker.env
 fi
