@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { DragEvent, RefObject } from 'react';
-import ReactGridLayout, { WidthProvider } from 'react-grid-layout';
+import ReactGridLayout, { WidthProvider } from 'react-grid-layout/legacy';
 import { ArrowDownToLine, Columns2, Grid2x2, Hexagon, Plus, Square } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -39,15 +39,17 @@ function TerminalSlot({
   useEffect(() => {
     if (instance && wrapperRef.current) {
       const container = instance.containerRef;
+      const wrapper = wrapperRef.current;
       // Move the terminal container into this slot
-      wrapperRef.current.appendChild(container);
-      /* eslint-disable react-compiler/react-compiler */
-      container.style.display = 'flex';
-      container.style.width = '100%';
-      container.style.height = '100%';
-      // Reset any manual styles that might interfere
-      container.style.order = '';
-      /* eslint-enable react-compiler/react-compiler */
+      wrapper.appendChild(container);
+      const attached = wrapper.firstElementChild as HTMLDivElement | null;
+      if (attached) {
+        attached.style.display = 'flex';
+        attached.style.width = '100%';
+        attached.style.height = '100%';
+        // Reset any manual styles that might interfere
+        attached.style.order = '';
+      }
 
       // Request fit
       requestAnimationFrame(() => {
@@ -57,8 +59,10 @@ function TerminalSlot({
   }, [instance]);
 
   useEffect(() => {
-    if (!instance) return;
-    instance.containerRef.classList.toggle('active-slot', Boolean(isActive));
+    const wrapper = wrapperRef.current;
+    const attached = wrapper?.firstElementChild as HTMLDivElement | null;
+    if (!attached) return;
+    attached.classList.toggle('active-slot', Boolean(isActive));
   }, [instance, isActive]);
 
   return (
@@ -83,12 +87,10 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
   const token = useAppSelector((state) => state.auth.token);
   const gridAreaRef = useRef<HTMLDivElement>(null);
   const [gridHeight, setGridHeight] = useState(0);
+  const [instancesSnapshot, setInstancesSnapshot] = useState<Map<string, TerminalInstance>>(new Map());
 
   useEffect(() => {
-    if (layoutMode === 'single') {
-      setGridHeight(0);
-      return;
-    }
+    if (layoutMode === 'single') return;
     const node = gridAreaRef.current;
     if (!node) return;
     const observer = new ResizeObserver((entries) => {
@@ -100,6 +102,10 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
     observer.observe(node);
     return () => observer.disconnect();
   }, [layoutMode]);
+
+  useEffect(() => {
+    setInstancesSnapshot(new Map(instancesRef.current));
+  }, [instancesRef, sessions, gridSessionIds, activeSessionId, layoutMode]);
 
   const handleLayoutChange = (mode: 'single' | 'split-vertical' | 'quad') => {
     if (layoutMode === 'single' && activeSessionId && !gridSessionIds[0]) {
@@ -164,7 +170,7 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
   const renderContent = () => {
     // Single Mode
     if (layoutMode === 'single') {
-      const activeInstance = activeSessionId && instancesRef.current ? instancesRef.current.get(activeSessionId) : undefined;
+      const activeInstance = activeSessionId ? instancesSnapshot.get(activeSessionId) : undefined;
 
       if (!activeInstance && sessions.length > 0 && token) {
         // Should act as empty state or select last active?
@@ -206,7 +212,7 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
         >
           {gridSlots.map((slotIndex) => {
             const sessionId = gridSessionIds[slotIndex];
-            const instance = sessionId && instancesRef.current ? instancesRef.current.get(sessionId) : undefined;
+            const instance = sessionId ? instancesSnapshot.get(sessionId) : undefined;
 
             if (instance) {
               return (
@@ -281,7 +287,6 @@ export function TerminalGrid({ instancesRef, containerRef }: TerminalGridProps) 
         )}
       </div>
 
-      {/* eslint-disable-next-line react-compiler/react-compiler */}
       {renderContent()}
 
       {/* Drop overlay for single layout */}

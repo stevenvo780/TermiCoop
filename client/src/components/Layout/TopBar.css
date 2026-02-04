@@ -9,6 +9,8 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   font-size: 0.8rem;
+  position: relative;
+  z-index: 50;
 }
 
 .brand {
@@ -319,7 +321,7 @@
   border-radius: 12px;
   min-width: 200px;
   padding: 8px;
-  z-index: 99999;
+  z-index: 2000;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
   animation: slideDown 200ms ease;
 }
