@@ -21,10 +21,6 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
   const [newPermission, setNewPermission] = useState('view');
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    fetchShares();
-  }, [worker.id]);
-
   const fetchShares = async () => {
     if (!token) return;
     try {
@@ -35,12 +31,17 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
       if (!res.ok) throw new Error('Failed to fetch shares');
       const data = await res.json();
       setShares(data);
-    } catch (err) {
+    } catch {
       setError('Could not load shares');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchShares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worker.id]);
 
   const handleShare = async () => {
     if (!newUsername || !token) return;
@@ -65,8 +66,8 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
 
       setNewUsername('');
       fetchShares();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to share');
     } finally {
       setAdding(false);
     }
@@ -91,8 +92,8 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
 
       if (!res.ok) throw new Error('Failed to unshare');
       fetchShares();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to unshare');
     }
   };
 

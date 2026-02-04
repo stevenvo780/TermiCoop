@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Worker } from '../App';
+import type { Worker } from '../store/slices/workersSlice';
 
 interface InstallWorkerModalProps {
   initialWorker: Worker | null;
@@ -47,8 +47,8 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
       setWorker(newWorker);
       onWorkerCreated(newWorker);
       setStep('install');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error creando worker');
     } finally {
       setLoading(false);
     }
