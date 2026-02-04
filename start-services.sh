@@ -10,10 +10,6 @@ pkill -f "ultimate-terminal"
 sleep 2
 
 # 2. Iniciar Nexus (Backend)
-# setsid: crea una nueva sesión.
-# < /dev/null: desconecta la entrada estándar.
-# > ... 2>&1: redirige logs para no bloquear la salida.
-# &: ejecuta en segundo plano.
 echo "Iniciando Nexus..."
 setsid npm run start:nexus > nexus.log 2>&1 < /dev/null &
 

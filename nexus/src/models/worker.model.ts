@@ -42,7 +42,6 @@ export class WorkerModel {
   static async findByApiKey(apiKey: string): Promise<Worker | undefined> {
     const worker = await db.get<Worker>('SELECT * FROM workers WHERE api_key = ?', [apiKey]);
     if (worker) {
-      // Ensure last_seen is number (it might be string/bigint from PG)
       worker.last_seen = Number(worker.last_seen);
     }
     return worker;
@@ -77,19 +76,6 @@ export class WorkerModel {
   }
 
   static async share(workerId: string, userId: number, permission: 'view' | 'control' | 'admin'): Promise<void> {
-    // INSERT OR REPLACE is SQLite specific. Postgres uses ON CONFLICT.
-    // Standard SQL (or PG): INSERT ... ON CONFLICT (worker_id, user_id) DO UPDATE SET permission = ...
-    // Since we want to support both, we should upsert carefully.
-    // 'INSERT OR REPLACE' in SQLite replaces the row (deletes old).
-    // Postgres doesn't support 'OR REPLACE' directly (it's non-standard).
-
-    // Compatibility hack: Delete then Insert? Or check adapter type?
-    // DBAdapter converts ? to $1 but doesn't transpile SQL syntax.
-
-    // I will use UPSERT syntax if compatible or DB-specific logic.
-    // SQLite 3.24+ supports ON CONFLICT. better-sqlite3 likely has decent version.
-
-    // Try ON CONFLICT syntax which works in both Modern SQLite and Postgres.
     await db.run(`
       INSERT INTO worker_shares (worker_id, user_id, permission)
       VALUES (?, ?, ?)

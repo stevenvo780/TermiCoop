@@ -63,6 +63,7 @@ export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
         const tags = workerTags[workerKey] || [];
         const permission = worker.permission || 'admin';
         const canManage = permission === 'admin';
+        const showInstall = canManage && worker.api_key && worker.status !== 'online';
         return (
           <div
             key={worker.id}
@@ -121,7 +122,7 @@ export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
                   <Link />
                 </button>
               )}
-              {canManage && worker.api_key && (
+              {showInstall && (
                 <button
                   className="install-worker-btn"
                   onClick={(e) => {

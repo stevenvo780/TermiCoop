@@ -5,6 +5,9 @@ import { WorkerModel, Worker } from './models/worker.model';
 import { UserModel } from './models/user.model';
 import db from './config/database';
 
+/**
+ * Data attached to the socket instance.
+ */
 interface SocketData {
   role: 'client' | 'worker';
   user?: JwtPayload;
@@ -13,6 +16,9 @@ interface SocketData {
 
 export const workers: Map<string, Worker & { socketId: string }> = new Map();
 
+/**
+ * Represents an active terminal session.
+ */
 interface ActiveSession {
   id: string;
   workerId: string;
@@ -59,6 +65,11 @@ const removeSocketFromAllSessions = (socketId: string) => {
   }
 };
 
+/**
+ * Initializes the Socket.IO server and handles connection logic.
+ * @param httpServer - The HTTP server instance to attach to.
+ * @returns The initialized Socket.IO server instance.
+ */
 export const initSocket = (httpServer: any) => {
   const io = new Server(httpServer, {
     cors: {
@@ -86,12 +97,9 @@ export const initSocket = (httpServer: any) => {
     });
   };
 
+
   const broadcastSessionList = async () => {
-    // We can't use forEach with async nicely if we want to filter per-socket
-    // But actually, the filtering is per-user (socket.data.user).
-    // It's expensive to do this per socket if many subscribers.
-    // Optimization: Calculate set of sessions visible per user ID?
-    // For now, iterate sockets.
+    // Optimization: Calculate set of sessions visible per user ID instead of iterating all sockets if scaling is needed.
     const sockets = Array.from(io.sockets.sockets.values());
     await Promise.all(sockets.map(async (socket) => {
       const socketData = socket.data as SocketData;
@@ -99,7 +107,6 @@ export const initSocket = (httpServer: any) => {
       const userId = socketData.user.userId;
 
       // Filter sessions active for this user
-      // We need to async check 'hasAccess' for each session's worker
       const sessions = await Promise.all(Array.from(activeSessions.values()).map(async s => {
         const hasAccess = await WorkerModel.hasAccess(userId, s.workerId, 'view');
         return hasAccess ? s : null;
@@ -160,7 +167,7 @@ export const initSocket = (httpServer: any) => {
         if (!token) return next(new Error('Missing token'));
         const payload = verifyToken(token);
 
-        // FIX: Verify user exists in DB to prevent stale tokens (e.g. after DB reset)
+        /** Validate that the user still exists in the database. */
         const userExists = await UserModel.findById(payload.userId);
         if (!userExists) {
           return next(new Error('User invalid or no longer exists'));
@@ -188,7 +195,6 @@ export const initSocket = (httpServer: any) => {
 
         socket.data = { role: 'worker', workerId: worker.id } as SocketData;
 
-        // Cache connected worker
         workers.set(worker.id, { ...worker, socketId: socket.id, status: 'online' });
 
         await WorkerModel.updateStatus(worker.id, 'online');

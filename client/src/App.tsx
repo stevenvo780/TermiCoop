@@ -29,7 +29,6 @@ import {
 import type { Worker } from './store/slices/workersSlice';
 import type { StoredSession } from './store/slices/sessionsSlice';
 
-// Components
 import { TopBar } from './components/Layout/TopBar';
 import { Sidebar } from './components/Layout/Sidebar/Sidebar';
 import { TerminalGrid } from './components/Terminal/TerminalGrid';
@@ -42,7 +41,6 @@ import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { Toast } from './components/Layout/Toast';
 import { JoinWorkerModal } from './components/JoinWorkerModal';
 
-// Terminal
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
@@ -119,7 +117,6 @@ function AppContent() {
     joinedSessionIdsRef.current.clear();
   }, [token]);
 
-  // Create new terminal session
   const createNewSession = useCallback((
     worker: Worker,
     options?: {

@@ -39,8 +39,7 @@ const startServer = async () => {
     }
 
     const httpServer = createServer(app);
-    // initSocket might be internal, but if it uses models, it manages its own async events.
-    // We pass server.
+    // Initialize Socket.IO server
     const io = initSocket(httpServer);
     app.set('io', io);
 

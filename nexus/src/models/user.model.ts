@@ -16,15 +16,11 @@ export class UserModel {
     const { hash, salt } = hashPassword(password);
     const createdAt = new Date().toISOString();
 
-    // In Postgres, we might want 'RETURNING id' but our adapter tries to handle lastInsertId.
-    // For Users, ID is serial/autoincrement.
-
     const result = await db.run(`
       INSERT INTO users (username, password_hash, salt, is_admin, created_at)
       VALUES (?, ?, ?, ?, ?)
     `, [username, hash, salt, isAdmin ? 1 : 0, createdAt]);
 
-    // lastInsertId might be bigint or string.
     const id = Number(result.lastInsertId);
 
     return {

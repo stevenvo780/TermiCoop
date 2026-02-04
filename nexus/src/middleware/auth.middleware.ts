@@ -11,16 +11,16 @@ declare global {
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader) {
-     res.status(401).json({ error: 'No token provided' });
-     return;
+    res.status(401).json({ error: 'No token provided' });
+    return;
   }
 
   const token = authHeader.split(' ')[1];
   if (!token) {
-     res.status(401).json({ error: 'Malformed token' });
-     return;
+    res.status(401).json({ error: 'Malformed token' });
+    return;
   }
 
   try {
