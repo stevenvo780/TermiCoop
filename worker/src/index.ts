@@ -8,14 +8,19 @@ dotenv.config();
 
 const setupNativeModulePaths = () => {
   const systemLibPath = '/usr/lib/ultimate-terminal';
+  const localPtyPath = path.resolve(__dirname, '../node_modules/node-pty/build/Release/pty.node');
+  const forceSystemPty = process.env.UT_USE_SYSTEM_PTY === 'true';
+
   if (fs.existsSync(systemLibPath)) {
     const Module = require('module');
     const originalResolveFilename = Module._resolveFilename;
     Module._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
       if (request.includes('pty.node') || request.includes('prebuilds/linux-x64')) {
-        const nativePath = path.join(systemLibPath, 'prebuilds/linux-x64/pty.node');
-        if (fs.existsSync(nativePath)) {
-          return nativePath;
+        if (forceSystemPty || !fs.existsSync(localPtyPath)) {
+          const nativePath = path.join(systemLibPath, 'prebuilds/linux-x64/pty.node');
+          if (fs.existsSync(nativePath)) {
+            return nativePath;
+          }
         }
       }
       return originalResolveFilename.call(this, request, parent, isMain, options);
