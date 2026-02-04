@@ -285,6 +285,20 @@ function AppContent() {
     }
   }, [workers, createNewSession]);
 
+  const refreshWorkers = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${NEXUS_URL}/api/workers`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const list = await res.json();
+      dispatch(setWorkers(list));
+    } catch {
+      // ignore refresh errors
+    }
+  }, [token, dispatch]);
+
   // Delete worker
   const handleDeleteWorker = useCallback(async (worker: Worker) => {
     if (!token) return;
@@ -297,6 +311,7 @@ function AppContent() {
         const sessionsToClose = sessions.filter((session) => session.workerId === worker.id);
         sessionsToClose.forEach((session) => handleCloseSession(session.id));
         dispatch(removeWorker(worker.id));
+        refreshWorkers();
         dispatch(closeDialog());
       } else {
         const err = await res.json();
@@ -313,7 +328,7 @@ function AppContent() {
         tone: 'danger',
       }));
     }
-  }, [token, dispatch, sessions, handleCloseSession]);
+  }, [token, dispatch, sessions, handleCloseSession, refreshWorkers]);
 
   // Resume session
   const handleResume = useCallback(() => {
@@ -608,6 +623,7 @@ function AppContent() {
           onClose={() => dispatch({ type: 'ui/setShowWorkerModal', payload: false })}
           onWorkerCreated={(worker) => {
             dispatch(addWorker(worker));
+            refreshWorkers();
           }}
           nexusUrl={NEXUS_URL}
           token={token}

@@ -63,6 +63,8 @@ async function main() {
       process.exit(1);
     }
 
+    // ... (previous code)
+
     // 5. Verify Accessibility from User B perspective
     const userBWorkers = await WorkerModel.getAccessibleWorkers(userB.id);
     const targetWorker = userBWorkers.find(w => w.id === worker!.id);
@@ -71,6 +73,29 @@ async function main() {
       console.log('[Verify] SUCCESS: User B can see the worker via getAccessibleWorkers.');
     } else {
       console.error('[Verify] FAILURE: User B CANNOT see the worker via getAccessibleWorkers.');
+      process.exit(1);
+    }
+
+    // 6. Verify JWT Payload Type
+    console.log('[Verify] Testing JWT Token flow...');
+    const { signToken, verifyToken } = require('../utils/jwt');
+    const token = signToken({ userId: userB.id, username: userB.username, isAdmin: false });
+    const decoded = verifyToken(token);
+
+    console.log(`[Verify] Original UserID: ${userB.id} (Type: ${typeof userB.id})`);
+    console.log(`[Verify] Decoded UserID: ${decoded.userId} (Type: ${typeof decoded.userId})`);
+
+    if (decoded.userId !== userB.id) {
+      console.error('[Verify] FAILURE: Token ID mismatch!');
+      process.exit(1);
+    }
+
+    const workersFromToken = await WorkerModel.getAccessibleWorkers(decoded.userId);
+    const found = workersFromToken.find(w => w.id === worker!.id);
+    if (found) {
+      console.log('[Verify] SUCCESS: Worker found using decoded token ID.');
+    } else {
+      console.error('[Verify] FAILURE: Worker NOT found using decoded token ID.');
       process.exit(1);
     }
 
