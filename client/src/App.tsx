@@ -53,7 +53,7 @@ const NEXUS_URL = import.meta.env.VITE_NEXUS_URL ||
   (import.meta.env.PROD ? window.location.origin : 'http://localhost:3002');
 const MAX_OUTPUT_CHARS = 20000;
 
-interface TerminalInstance {
+export interface TerminalInstance {
   id: string;
   workerId: string;
   workerKey: string;
@@ -75,7 +75,6 @@ function AppContent() {
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
   const workers = useAppSelector((state) => state.workers.workers);
   const offlineSessionIds = useAppSelector((state) => state.sessions.offlineSessionIds);
-  const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
   const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const renamingSessionId = useAppSelector((state) => state.ui.renamingSessionId);
   const shareModalWorker = useAppSelector((state) => state.ui.shareModalWorker);
@@ -482,40 +481,12 @@ function AppContent() {
     dispatch(setOfflineSessionIds(offlineIds));
   }, [sessions, workers, dispatch, normalizeWorkerKey]);
 
-  // Terminal visibility management
+  // Terminal visibility is now handled by TerminalGrid's reparenting logic
+  // We only need to trigger fits occasionally if layout changes drastically
   useEffect(() => {
-    const visibleIds = new Set<string>();
-    if (layoutMode === 'single') {
-      if (activeSessionId) visibleIds.add(activeSessionId);
-    } else {
-      const slots = layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3];
-      slots.forEach(idx => { if (gridSessionIds[idx]) visibleIds.add(gridSessionIds[idx]); });
-    }
-
-    terminalInstancesRef.current.forEach((instance, sessionId) => {
-      const visible = visibleIds.has(sessionId);
-      instance.containerRef.style.display = visible ? 'flex' : 'none';
-      instance.containerRef.classList.toggle('active-slot', sessionId === activeSessionId);
-
-      // Assign order for grid layout
-      if (layoutMode !== 'single') {
-        const slotIndex = gridSessionIds.indexOf(sessionId);
-        if (slotIndex !== -1) {
-          instance.containerRef.style.order = slotIndex.toString();
-        }
-      } else {
-        instance.containerRef.style.removeProperty('order');
-      }
-
-      if (visible) {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            instance.fitAddon.fit();
-          });
-        });
-      }
-    });
-  }, [activeSessionId, layoutMode, gridSessionIds]);
+    // Optional: Global fit check
+    terminalInstancesRef.current.forEach(i => i.fitAddon.fit());
+  }, [layoutMode]);
 
   if (!token) {
     return <LoginPage />;
@@ -558,7 +529,7 @@ function AppContent() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         />
-        <TerminalGrid containerRef={terminalContainerRef as React.RefObject<HTMLDivElement>} />
+        <TerminalGrid instancesRef={terminalInstancesRef} />
       </div>
 
       {renamingSessionId && (
