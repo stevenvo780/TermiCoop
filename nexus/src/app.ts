@@ -87,53 +87,35 @@ app.get('/install.sh', (req, res) => {
 });
 
 app.get('/api/downloads/latest/worker-linux.:ext', (req, res) => {
-    const { ext } = req.params;
-    const allowed = ext === 'deb' || ext === 'rpm';
-    if (!allowed) {
-      res.status(400).send('Formato no soportado. Usa .deb o .rpm');
-      return;
-    }
+  const { ext } = req.params;
+  const allowed = ext === 'deb' || ext === 'rpm';
+  if (!allowed) {
+    res.status(400).send('Formato no soportado. Usa .deb o .rpm');
+    return;
+  }
 
-    const file = downloadRoots
-      .map(root => {
-        if (!existsSync(root)) return null;
-        const entries = fs.readdirSync(root);
-        return entries
-          .filter(name => (
-            (name.startsWith('ultimate-terminal-worker') || name.startsWith('worker-linux')) &&
-            name.endsWith(`.${ext}`)
-          ))
-          .map(name => path.join(root, name))[0];
-      })
-      .find(Boolean);
+  const file = downloadRoots
+    .map(root => {
+      if (!existsSync(root)) return null;
+      const entries = fs.readdirSync(root);
+      return entries
+        .filter(name => (
+          (name.startsWith('ultimate-terminal-worker') || name.startsWith('worker-linux')) &&
+          name.endsWith(`.${ext}`)
+        ))
+        .map(name => path.join(root, name))[0];
+    })
+    .find(Boolean);
 
-    if (!file) {
-      res.status(404).send('Paquete de worker no encontrado en el servidor.');
-      return;
-    }
+  if (!file) {
+    res.status(404).send('Paquete de worker no encontrado en el servidor.');
+    return;
+  }
 
-    const filename = ext === 'deb' ? 'worker-linux.deb' : 'worker-linux.rpm';
-    res.download(file, filename);
+  const filename = ext === 'deb' ? 'worker-linux.deb' : 'worker-linux.rpm';
+  res.download(file, filename);
 });
 
-const clientPaths = [
-  path.resolve(process.cwd(), 'client/dist'),
-  path.resolve(process.cwd(), '../client/dist'),
-  path.resolve(process.cwd(), 'public'),
-  '/usr/share/ultimate-terminal/public',
-  path.resolve(__dirname, '../public'),
-];
-const clientDistPath = clientPaths.find(p => existsSync(p));
 
-if (clientDistPath) {
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-      return next();
-    }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
-  });
-  console.log(`Serving client from ${clientDistPath}`);
-}
 
 export default app;

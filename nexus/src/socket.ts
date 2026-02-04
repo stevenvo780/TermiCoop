@@ -152,7 +152,7 @@ export const initSocket = (httpServer: any) => {
 
   io.use(async (socket, next) => {
     const { token, type, apiKey, workerName } = (socket.handshake.auth || {}) as any;
-    console.log(`[AuthDebug] Handshake from ${socket.id} type=${type} hasApiKey=${!!apiKey}`);
+
 
     try {
       if (type === 'client') {
@@ -196,10 +196,10 @@ export const initSocket = (httpServer: any) => {
 
   io.on('connection', (socket: Socket) => {
     const data = socket.data as SocketData;
-    console.log(`New connection: ${socket.id} (${data.role})`);
+
 
     if (data.role === 'worker' && data.workerId) {
-      console.log(`Worker ${data.workerId} connected`);
+
       broadcastWorkerUpdates();
     }
 
@@ -212,7 +212,7 @@ export const initSocket = (httpServer: any) => {
       if (data.role === 'worker' && data.workerId) {
         workers.delete(data.workerId);
         await WorkerModel.updateStatus(data.workerId, 'offline');
-        console.log(`Worker ${data.workerId} disconnected`);
+
         broadcastWorkerUpdates();
       }
       removeSocketFromAllSessions(socket.id);

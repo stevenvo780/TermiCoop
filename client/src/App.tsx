@@ -71,7 +71,6 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const NEXUS_URL = import.meta.env.VITE_NEXUS_URL || (import.meta.env.PROD ? window.location.origin : 'http://localhost:3002');
-console.log('Using NEXUS_URL:', NEXUS_URL, 'Mode:', import.meta.env.MODE);
 const AUTH_KEY = 'ut-token';
 const LAST_WORKER_KEY = 'ut-last-worker';
 const SESSION_STORE_KEY = 'ut-sessions-v1';
@@ -92,7 +91,7 @@ function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [token, setToken] = useState<string | null>(null);
-  // const [createdWorker, setCreatedWorker] = useState<Worker | null>(null);
+
 
   const [needsSetup, setNeedsSetup] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -173,7 +172,7 @@ function App() {
       createdAt: session.createdAt,
       lastActiveAt: session.lastActiveAt,
     }));
-    console.log('Persisting sessions:', snapshot.length, 'ActiveRef:', activeSessionRef.current);
+    // console.log('Persisting sessions:', snapshot.length, 'ActiveRef:', activeSessionRef.current);
     savedSessionsRef.current = snapshot;
     localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(snapshot));
     localStorage.setItem(SESSION_OUTPUT_KEY, JSON.stringify(sessionOutputRef.current));
@@ -322,7 +321,7 @@ function App() {
     if (socketRef.current) {
       socketRef.current.disconnect();
     }
-    console.log('Initializing Socket.IO with token:', authToken.slice(0, 5) + '...');
+
     const newSocket = io(NEXUS_URL, {
       auth: { token: authToken, type: 'client' },
       reconnection: true,
@@ -361,7 +360,7 @@ function App() {
     });
 
     newSocket.on('workers', (list: Worker[]) => {
-      console.log('Received workers list:', JSON.stringify(list));
+
       setWorkers(list);
       workersRef.current = list;
     });
@@ -424,12 +423,12 @@ function App() {
     });
 
     newSocket.on('output', (data: { workerId: string; sessionId?: string; data: string }) => {
-      console.log(`[CLIENT] Output received: Worker=${data.workerId}, Session=${data.sessionId}, DataLen=${data.data.length}`);
+      // console.log(`[CLIENT] Output received: Worker=${data.workerId}, Session=${data.sessionId}, DataLen=${data.data.length}`);
       const targetSessions = data.sessionId
         ? sessionsRef.current.filter((session) => session.id === data.sessionId)
         : sessionsRef.current.filter((session) => session.workerId === data.workerId);
 
-      console.log(`[CLIENT] Target sessions found: ${targetSessions.length}. Total sessions: ${sessionsRef.current.length}`);
+      // console.log(`[CLIENT] Target sessions found: ${targetSessions.length}. Total sessions: ${sessionsRef.current.length}`);
 
       targetSessions.forEach((session) => {
         session.terminal.write(data.data);
@@ -509,7 +508,7 @@ function App() {
   }, [gridSessionIds]);
 
   useEffect(() => {
-    console.log('Active Session ID changed to:', activeSessionId);
+    // console.log('Active Session ID changed to:', activeSessionId);
     activeSessionRef.current = activeSessionId;
     if (isRestored) {
       schedulePersistSessions();
@@ -606,12 +605,12 @@ function App() {
     const savedWorker = localStorage.getItem(LAST_WORKER_KEY);
     if (savedWorker) lastWorkerRef.current = savedWorker;
     const savedSessions = parseStored<StoredSession[]>(localStorage.getItem(SESSION_STORE_KEY), []);
-    console.log('Loaded saved stored sessions:', savedSessions);
+    // console.log('Loaded saved stored sessions:', savedSessions);
     savedSessionsRef.current = savedSessions;
     const savedGrid = parseStored<string[]>(localStorage.getItem(GRID_SLOTS_KEY), []);
     setGridSessionIds(savedGrid.slice(0, 4));
     storedActiveSessionRef.current = localStorage.getItem(ACTIVE_SESSION_KEY);
-    console.log('Restored Active Session ID:', storedActiveSessionRef.current);
+    // console.log('Restored Active Session ID:', storedActiveSessionRef.current);
     sessionOutputRef.current = parseStored<Record<string, string>>(
       localStorage.getItem(SESSION_OUTPUT_KEY),
       {},
@@ -740,7 +739,7 @@ function App() {
       const exactExists = sessionsRef.current.some((s) => s.id === options.sessionId) ||
         pendingSessionIdsRef.current.has(options.sessionId);
       if (exactExists) {
-        console.log(`[createNewSession] Session ${options.sessionId} already exists or pending`);
+
         return undefined;
       }
       // Add to pending immediately for socket-based dedup
@@ -750,7 +749,7 @@ function App() {
     // 2. For new sessions (clicks), enforce worker-level lock
     if (!options?.sessionId) {
       if (pendingSessionIdsRef.current.has(creationLockKey)) {
-        console.log(`[createNewSession] BLOCKED duplicate for worker: ${workerKey}`);
+
         return undefined;
       }
       pendingSessionIdsRef.current.add(creationLockKey);
@@ -815,7 +814,7 @@ function App() {
     });
     term.onData((data) => {
       trackInputForHistory(sessionId, workerKey, data);
-      console.log(`[CLIENT] onData session=${sessionId} len=${data.length}`);
+
       if (socketRef.current) {
         socketRef.current.emit('execute', {
           workerId: worker.id,
@@ -895,27 +894,27 @@ function App() {
   useEffect(() => {
     if (workers.length === 0) return;
     const saved = savedSessionsRef.current;
-    console.log('Attempting hydration. Workers:', workers.length, 'Saved:', saved.length);
+
     if (saved.length === 0) return;
 
     saved.forEach((ss) => {
-      console.log('Checking session for hydration:', ss.id, ss.workerName);
+
       if (sessionsRef.current.some((s) => s.id === ss.id)) {
-        console.log('Session already exists:', ss.id);
+
         return;
       }
       if (hydratedSessionIdsRef.current.has(ss.id)) {
-        console.log('Session already hydrated:', ss.id);
+
         return;
       }
 
       const worker = resolveWorkerForSession({ ...ss, workerId: ss.workerId || '' }, workers);
-      console.log('Resolved worker for session:', ss.id, worker ? worker.name : 'null');
+
 
       if (worker) {
         const output = sessionOutputRef.current[ss.id] || '';
         const shouldFocus = storedActiveSessionRef.current === ss.id;
-        console.log('Creating session:', ss.id, 'Focus:', shouldFocus, 'StoredActive:', storedActiveSessionRef.current);
+
         createNewSession(worker, {
           sessionId: ss.id,
           displayName: ss.displayName,
