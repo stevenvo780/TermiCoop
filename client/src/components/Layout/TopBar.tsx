@@ -86,21 +86,20 @@ export function TopBar({
 
       <div className="topbar-right">
         <button
-          className="ghost-btn"
+          className="icon-btn"
           onClick={() => dispatch(setShowInstallModal(true))}
           title="Instalar worker"
         >
-          Instalar worker
+          ⬇
         </button>
-
         {activeSessionId && (
-          <button className="resume-btn" onClick={onResume} title="Reanudar sesión activa">
-            Reanudar
+          <button className="icon-btn resume-btn" onClick={onResume} title="Reanudar sesión activa">
+            ▶
           </button>
         )}
 
         <button
-          className="ghost-btn fullscreen-btn"
+          className="icon-btn"
           onClick={onFullscreen}
           title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
         >
@@ -108,31 +107,31 @@ export function TopBar({
         </button>
 
         <button
-          className="ghost-btn pwa-btn"
+          className="icon-btn"
           onClick={onInstallPWA}
           disabled={!installPromptAvailable}
           title={installPromptAvailable ? 'Descargar como PWA' : 'PWA no disponible'}
         >
-          ⇩ PWA
+          📱
         </button>
 
-        <div className={`status ${connectionState === 'connected' ? 'ok' :
+        <div className={`status-dot ${connectionState === 'connected' ? 'ok' :
           connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
-          }`}>
-          {connectionState === 'connected' && 'Conectado'}
-          {connectionState === 'connecting' && 'Conectando...'}
-          {connectionState === 'reconnecting' && 'Reconectando...'}
-          {connectionState === 'disconnected' && 'Desconectado'}
+          }`} title={
+            connectionState === 'connected' ? 'Conectado' :
+              connectionState === 'connecting' ? 'Conectando...' :
+                connectionState === 'reconnecting' ? 'Reconectando...' : 'Desconectado'
+          }>
         </div>
 
         {token && currentUser && (
           <div className="user-menu-container">
             <button
-              className="user-menu-btn"
+              className="icon-btn user-btn"
               onClick={() => dispatch(setShowUserMenu(!showUserMenu))}
               title={currentUser.username}
             >
-              👤 {currentUser.username}
+              👤
             </button>
             {showUserMenu && (
               <div className="user-menu-dropdown">

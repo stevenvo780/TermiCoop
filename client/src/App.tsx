@@ -496,6 +496,17 @@ function AppContent() {
       const visible = visibleIds.has(sessionId);
       instance.containerRef.style.display = visible ? 'flex' : 'none';
       instance.containerRef.classList.toggle('active-slot', sessionId === activeSessionId);
+
+      // Assign order for grid layout
+      if (layoutMode !== 'single') {
+        const slotIndex = gridSessionIds.indexOf(sessionId);
+        if (slotIndex !== -1) {
+          instance.containerRef.style.order = slotIndex.toString();
+        }
+      } else {
+        instance.containerRef.style.removeProperty('order');
+      }
+
       if (visible) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
