@@ -38,15 +38,28 @@ export function useAuth(): UseAuthReturn {
         body: JSON.stringify({ username, password }),
       });
 
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401 ? 'Credenciales incorrectas' :
+              response.status === 404 ? 'Servidor no encontrado' :
+                `Error del servidor (${response.status})`
+          );
+        }
+        throw new Error('Respuesta inválida del servidor');
+      }
+
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        throw new Error(data.error || 'Credenciales incorrectas');
       }
 
       dispatch(loginSuccess({ token: data.token, user: data.user }));
       return true;
     } catch (err: unknown) {
-      dispatch(setAuthError(err instanceof Error ? err.message : 'Authentication failed'));
+      const message = err instanceof Error ? err.message : 'Error de autenticación';
+      dispatch(setAuthError(message));
       return false;
     } finally {
       dispatch(setBusy(false));
@@ -64,15 +77,28 @@ export function useAuth(): UseAuthReturn {
         body: JSON.stringify({ username, password }),
       });
 
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        if (!response.ok) {
+          throw new Error(
+            response.status === 403 ? 'Registro no permitido' :
+              response.status === 404 ? 'Servidor no encontrado' :
+                `Error del servidor (${response.status})`
+          );
+        }
+        throw new Error('Respuesta inválida del servidor');
+      }
+
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(data.error || 'Error en registro');
       }
 
       dispatch(loginSuccess({ token: data.token, user: data.user }));
       return true;
     } catch (err: unknown) {
-      dispatch(setAuthError(err instanceof Error ? err.message : 'Registration failed'));
+      const message = err instanceof Error ? err.message : 'Error de registro';
+      dispatch(setAuthError(message));
       return false;
     } finally {
       dispatch(setBusy(false));
