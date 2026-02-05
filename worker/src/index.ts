@@ -37,6 +37,9 @@ const API_KEY = process.env.API_KEY || process.env.WORKER_TOKEN || '';
 const WORKER_NAME = process.env.WORKER_NAME || os.hostname();
 const HEARTBEAT_MS = Number(process.env.WORKER_HEARTBEAT_MS || 5000);
 const AUTO_RESTART_SHELL = process.env.AUTO_RESTART_SHELL !== 'false';
+const LOG_EXECUTE = process.env.UT_LOG_EXECUTE === 'true';
+const OUTPUT_FLUSH_MS = Math.max(1, Number(process.env.UT_OUTPUT_FLUSH_MS || 16));
+const OUTPUT_MAX_BUFFER = Math.max(512, Number(process.env.UT_OUTPUT_MAX_BUFFER || 8192));
 
 if (!API_KEY) {
   console.warn('[Worker] No API_KEY provided. Registration will likely be rejected by Nexus.');
@@ -125,7 +128,9 @@ function connect() {
       return;
     }
 
-    console.log(`[Worker] execute received session=${sessionId} len=${data.command.length}`);
+    if (LOG_EXECUTE) {
+      console.log(`[Worker] execute received session=${sessionId} len=${data.command.length}`);
+    }
 
     let shell = sessionShells.get(sessionId);
     if (!shell) {
@@ -336,8 +341,8 @@ function createShellForSession(
   });
 
   // Buffer output to prevent packet storms
-  const FLUSH_DELAY_MS = 10;
-  const MAX_BUFFER_SIZE = 4096;
+  const FLUSH_DELAY_MS = OUTPUT_FLUSH_MS;
+  const MAX_BUFFER_SIZE = OUTPUT_MAX_BUFFER;
 
   // Using global/outer scope maps for buffers if they don't exist yet, 
   // but here we can attach them to the shell or keep local since this function is closure-heavy.

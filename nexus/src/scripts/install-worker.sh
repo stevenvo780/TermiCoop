@@ -67,7 +67,7 @@ install_rpm() {
   echo "Descargando worker .rpm..."
   curl -fL "${NEXUS_URL}/api/downloads/latest/worker-linux.rpm?os=${OS_ID}&version=${VERSION_ID}&arch=${ARCH_RAW}" -o "${tmp_rpm}"
   echo "Instalando..."
-  $SUDO rpm -Uvh "${tmp_rpm}"
+  $SUDO rpm -Uvh "${tmp_rpm}" || $SUDO rpm -Uvh --oldpackage --replacepkgs "${tmp_rpm}"
   rm -f "${tmp_rpm}" || true
 }
 
@@ -119,7 +119,17 @@ if [ -n "${WORKER_NAME:-}" ]; then
 fi
 
 if [ -x /usr/bin/ultimate-terminal-worker ]; then
-  if ! /usr/bin/ultimate-terminal-worker --help >/dev/null 2>&1; then
+  if command -v timeout >/dev/null 2>&1; then
+    rc=0
+    timeout 2 /usr/bin/ultimate-terminal-worker --help >/dev/null 2>&1 || rc=$?
+    if [ "$rc" -eq 124 ]; then
+      rc=0
+    fi
+  else
+    rc=0
+    /usr/bin/ultimate-terminal-worker --help >/dev/null 2>&1 || rc=$?
+  fi
+  if [ "$rc" -ne 0 ]; then
     echo "ERROR: El binario no ejecuta correctamente (posible incompatibilidad GLIBC)."
     echo "Recomendado: compilar el worker en Ubuntu 20.04 con Node 18 y reempaquetar."
     exit 1

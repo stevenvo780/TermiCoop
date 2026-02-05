@@ -54,6 +54,7 @@ const MAX_OUTPUT_CHARS = 20000;
 const SESSION_OUTPUT_KEY = 'ut-session-output-v1';
 const OUTPUT_FLUSH_MS = 80;
 const OUTPUT_PERSIST_MS = 800;
+const TERMINAL_WRITE_FLUSH_MS = 16;
 
 export interface TerminalInstance {
   id: string;
@@ -97,9 +98,12 @@ function AppContent() {
   const pendingSessionIdsRef = useRef<Set<string>>(new Set());
   const joinedSessionIdsRef = useRef<Set<string>>(new Set());
   const sessionOutputRef = useRef<Record<string, string>>({});
+  const sessionsRef = useRef<StoredSession[]>([]);
   const outputBufferRef = useRef<Record<string, string>>({});
   const outputFlushTimerRef = useRef<number | null>(null);
   const outputPersistTimerRef = useRef<number | null>(null);
+  const terminalWriteBufferRef = useRef<Record<string, string>>({});
+  const terminalWriteTimerRef = useRef<number | null>(null);
 
   const normalizeWorkerKey = useCallback((name: string) => name.trim().toLowerCase(), []);
   const getAdaptiveFontSize = useCallback(() => (window.innerWidth <= 960 ? 13 : 14), []);
@@ -110,6 +114,10 @@ function AppContent() {
   useEffect(() => {
     sessionOutputRef.current = sessionOutput;
   }, [sessionOutput]);
+
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   useEffect(() => {
     if (outputPersistTimerRef.current) {
@@ -141,6 +149,19 @@ function AppContent() {
     });
   }, [dispatch]);
 
+  const flushTerminalWriteBuffer = useCallback(() => {
+    const pending = terminalWriteBufferRef.current;
+    terminalWriteBufferRef.current = {};
+    const entries = Object.entries(pending);
+    if (entries.length === 0) return;
+    entries.forEach(([sessionId, chunk]) => {
+      const instance = terminalInstancesRef.current.get(sessionId);
+      if (instance) {
+        instance.terminal.write(chunk);
+      }
+    });
+  }, []);
+
   const queueOutput = useCallback((sessionId: string, chunk: string) => {
     if (!chunk) return;
     outputBufferRef.current[sessionId] = (outputBufferRef.current[sessionId] || '') + chunk;
@@ -150,6 +171,16 @@ function AppContent() {
       flushOutputBuffer();
     }, OUTPUT_FLUSH_MS);
   }, [flushOutputBuffer]);
+
+  const queueTerminalWrite = useCallback((sessionId: string, chunk: string) => {
+    if (!chunk) return;
+    terminalWriteBufferRef.current[sessionId] = (terminalWriteBufferRef.current[sessionId] || '') + chunk;
+    if (terminalWriteTimerRef.current !== null) return;
+    terminalWriteTimerRef.current = window.setTimeout(() => {
+      terminalWriteTimerRef.current = null;
+      flushTerminalWriteBuffer();
+    }, TERMINAL_WRITE_FLUSH_MS);
+  }, [flushTerminalWriteBuffer]);
 
   useEffect(() => {
     if (token) return;
@@ -161,6 +192,16 @@ function AppContent() {
     terminalInstancesRef.current.clear();
     pendingSessionIdsRef.current.clear();
     joinedSessionIdsRef.current.clear();
+    outputBufferRef.current = {};
+    terminalWriteBufferRef.current = {};
+    if (outputFlushTimerRef.current !== null) {
+      window.clearTimeout(outputFlushTimerRef.current);
+      outputFlushTimerRef.current = null;
+    }
+    if (terminalWriteTimerRef.current !== null) {
+      window.clearTimeout(terminalWriteTimerRef.current);
+      terminalWriteTimerRef.current = null;
+    }
   }, [token]);
 
   const createNewSession = useCallback((
@@ -304,6 +345,8 @@ function AppContent() {
       bumpInstancesVersion();
     }
     pendingSessionIdsRef.current.delete(sessionId);
+    delete outputBufferRef.current[sessionId];
+    delete terminalWriteBufferRef.current[sessionId];
     socketRef.current?.emit('close-session', { sessionId });
     dispatch(removeSession(sessionId));
   }, [dispatch, bumpInstancesVersion]);
@@ -470,16 +513,24 @@ function AppContent() {
         socket.on('workers', (list: Worker[]) => dispatch(setWorkers(list)));
 
         socket.on('output', (data: { workerId: string; sessionId?: string; data: string }) => {
-          const targetSessions = data.sessionId
-            ? sessions.filter((s) => s.id === data.sessionId)
-            : sessions.filter((s) => s.workerId === data.workerId);
+          if (data.sessionId) {
+            const instance = terminalInstancesRef.current.get(data.sessionId);
+            if (instance) {
+              queueTerminalWrite(data.sessionId, data.data);
+            }
+            if (sessionsRef.current.some((s) => s.id === data.sessionId)) {
+              queueOutput(data.sessionId, data.data);
+            }
+            return;
+          }
 
+          const targetSessions = sessionsRef.current.filter((s) => s.workerId === data.workerId);
           targetSessions.forEach((session) => {
             const instance = terminalInstancesRef.current.get(session.id);
             if (instance) {
-              instance.terminal.write(data.data);
-              queueOutput(session.id, data.data);
+              queueTerminalWrite(session.id, data.data);
             }
+            queueOutput(session.id, data.data);
           });
         });
 
@@ -508,7 +559,7 @@ function AppContent() {
       });
 
     return () => { socketRef.current?.disconnect(); };
-  }, [token, dispatch, sessions, queueOutput]);
+  }, [token, dispatch, queueOutput, queueTerminalWrite]);
 
   useEffect(() => {
     if (!token) {

@@ -31,6 +31,11 @@ interface ActiveSession {
 }
 const activeSessions: Map<string, ActiveSession> = new Map();
 const sessionSubscribers: Map<string, Set<string>> = new Map();
+const SESSION_LIST_DEBOUNCE_MS = Number(process.env.SESSION_LIST_DEBOUNCE_MS || 500);
+const ACCESS_CACHE_TTL_MS = Number(process.env.ACCESS_CACHE_TTL_MS || 2000);
+let sessionListDirty = false;
+let sessionListTimer: NodeJS.Timeout | null = null;
+const workerAccessCache = new Map<number, { ts: number; workerIds: Set<string> }>();
 
 const sessionKey = (workerId: string, sessionId: string) => `${workerId}:${sessionId}`;
 
@@ -55,14 +60,17 @@ const removeSessionSubscriber = (sessionId: string, socketId: string) => {
 };
 
 const removeSocketFromAllSessions = (socketId: string) => {
+  const removedSessions: string[] = [];
   for (const [sessionId, set] of sessionSubscribers.entries()) {
     if (set.has(socketId)) {
       set.delete(socketId);
+      removedSessions.push(sessionId);
       if (set.size === 0) {
         sessionSubscribers.delete(sessionId);
       }
     }
   }
+  return removedSessions;
 };
 
 /**
@@ -104,30 +112,75 @@ export const initSocket = (httpServer: any) => {
 
 
   const broadcastSessionList = async () => {
-    // Optimization: Calculate set of sessions visible per user ID instead of iterating all sockets if scaling is needed.
+    const sessionsByWorker = new Map<string, ActiveSession[]>();
+    for (const session of activeSessions.values()) {
+      const list = sessionsByWorker.get(session.workerId) || [];
+      list.push(session);
+      sessionsByWorker.set(session.workerId, list);
+    }
+
     const sockets = Array.from(io.sockets.sockets.values());
     await Promise.all(sockets.map(async (socket) => {
       const socketData = socket.data as SocketData;
       if (socketData.role !== 'client' || !socketData.user) return;
+
       const userId = socketData.user.userId;
+      const cached = workerAccessCache.get(userId);
+      let allowedWorkerIds: Set<string>;
+      if (cached && Date.now() - cached.ts < ACCESS_CACHE_TTL_MS) {
+        allowedWorkerIds = cached.workerIds;
+      } else {
+        const accessibleWorkers = await WorkerModel.getAccessibleWorkers(userId);
+        allowedWorkerIds = new Set(accessibleWorkers.map((w) => w.id));
+        workerAccessCache.set(userId, { ts: Date.now(), workerIds: allowedWorkerIds });
+      }
 
-      // Filter sessions active for this user
-      const sessions = await Promise.all(Array.from(activeSessions.values()).map(async s => {
-        const hasAccess = await WorkerModel.hasAccess(userId, s.workerId, 'view');
-        return hasAccess ? s : null;
-      }));
+      const filtered: Array<{
+        id: string;
+        workerName: string;
+        workerKey: string;
+        displayName: string;
+        createdAt: number;
+        lastActiveAt: number;
+      }> = [];
 
-      const filtered = sessions.filter(s => s !== null).map(s => ({
-        id: s!.id,
-        workerName: s!.workerName,
-        workerKey: s!.workerKey,
-        displayName: s!.displayName,
-        createdAt: s!.createdAt,
-        lastActiveAt: s!.lastActive
-      }));
+      for (const [workerId, sessions] of sessionsByWorker.entries()) {
+        if (!allowedWorkerIds.has(workerId)) continue;
+        sessions.forEach((s) => {
+          filtered.push({
+            id: s.id,
+            workerName: s.workerName,
+            workerKey: s.workerKey,
+            displayName: s.displayName,
+            createdAt: s.createdAt,
+            lastActiveAt: s.lastActive,
+          });
+        });
+      }
 
       socket.emit('session-list', filtered);
     }));
+  };
+
+  const scheduleSessionListBroadcast = (force = false) => {
+    sessionListDirty = true;
+    if (force) {
+      if (sessionListTimer) {
+        clearTimeout(sessionListTimer);
+        sessionListTimer = null;
+      }
+      sessionListDirty = false;
+      broadcastSessionList().catch(console.error);
+      return;
+    }
+
+    if (sessionListTimer) return;
+    sessionListTimer = setTimeout(() => {
+      sessionListTimer = null;
+      if (!sessionListDirty) return;
+      sessionListDirty = false;
+      broadcastSessionList().catch(console.error);
+    }, SESSION_LIST_DEBOUNCE_MS);
   };
 
   const ensureActiveSession = async (workerId: string, sessionIdRaw?: string, displayName?: string) => {
@@ -225,17 +278,30 @@ export const initSocket = (httpServer: any) => {
 
     if (data.role === 'client' && data.user) {
       sendWorkerListToSocket(socket);
-      broadcastSessionList();
+      scheduleSessionListBroadcast(true);
     }
 
     socket.on('disconnect', async () => {
       if (data.role === 'worker' && data.workerId) {
         workers.delete(data.workerId);
         await WorkerModel.updateStatus(data.workerId, 'offline');
-
+        scheduleSessionListBroadcast(true);
         broadcastWorkerUpdates();
       }
-      removeSocketFromAllSessions(socket.id);
+      const removedSessions = removeSocketFromAllSessions(socket.id);
+      if (data.role === 'client' && removedSessions.length > 0) {
+        const workerIds = new Set<string>();
+        for (const sessionId of removedSessions) {
+          const session = Array.from(activeSessions.values()).find((s) => s.id === sessionId);
+          if (session) workerIds.add(session.workerId);
+        }
+        for (const workerId of workerIds) {
+          const worker = workers.get(workerId);
+          if (worker) {
+            io.to(worker.socketId).emit('client-disconnect', { clientId: socket.id });
+          }
+        }
+      }
     });
 
     socket.on('heartbeat', async () => {
@@ -247,7 +313,7 @@ export const initSocket = (httpServer: any) => {
     socket.on('register', (msg: { type?: string }) => {
       if (msg?.type === 'client' && data.role === 'client') {
         sendWorkerListToSocket(socket);
-        broadcastSessionList();
+        scheduleSessionListBroadcast(true);
       }
     });
 
@@ -276,7 +342,7 @@ export const initSocket = (httpServer: any) => {
         sessionId
       });
 
-      broadcastSessionList();
+      scheduleSessionListBroadcast(true);
     });
 
     socket.on('resize', async (msg: { workerId: string; cols: number; rows: number; sessionId?: string }) => {
@@ -318,8 +384,8 @@ export const initSocket = (httpServer: any) => {
           data: msg.output
         });
       }
-      // Debounce broadcast if needed, or simple broadcast
-      broadcastSessionList();
+      // Debounced session list updates to avoid heavy fan-out on every chunk
+      scheduleSessionListBroadcast();
     });
 
     socket.on('session-shell-exited', (msg: { sessionId?: string }) => {
@@ -332,7 +398,7 @@ export const initSocket = (httpServer: any) => {
         io.to(Array.from(subs)).emit('session-closed', { sessionId });
       }
       sessionSubscribers.delete(sessionId);
-      broadcastSessionList();
+      scheduleSessionListBroadcast(true);
     });
 
     socket.on('subscribe', async (msg: { workerId: string }) => {
@@ -364,7 +430,7 @@ export const initSocket = (httpServer: any) => {
           session.lastActive = Date.now();
         }
       }
-      broadcastSessionList();
+      scheduleSessionListBroadcast(true);
     });
 
     socket.on('leave-session', (msg: { sessionId: string }) => {
@@ -390,7 +456,7 @@ export const initSocket = (httpServer: any) => {
       } catch (err) {
         console.error('Failed to update session name in DB:', err);
       }
-      broadcastSessionList();
+      scheduleSessionListBroadcast(true);
     });
 
     socket.on('close-session', async (msg: { sessionId: string }) => {
@@ -414,8 +480,7 @@ export const initSocket = (httpServer: any) => {
       const key = sessionKey(session.workerId, sessionId);
       activeSessions.delete(key);
       removeSessionSubscriber(sessionId, socket.id);
-
-      broadcastSessionList();
+      scheduleSessionListBroadcast(true);
     });
 
     socket.on('get-session-output', async (msg: { sessionId: string }, cb?: (output: string) => void) => {
