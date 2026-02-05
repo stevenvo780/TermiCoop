@@ -2,6 +2,8 @@
 import { Request, Response } from 'express';
 import { WorkerModel } from '../models/worker.model';
 import { UserModel } from '../models/user.model';
+import { workers as connectedWorkers } from '../socket';
+import type { Server } from 'socket.io';
 
 export class WorkerController {
   static async list(req: Request, res: Response) {
@@ -149,12 +151,17 @@ export class WorkerController {
       return;
     }
 
-    if (worker.status === 'online') {
-      res.status(409).json({ error: 'Cannot delete an online worker' });
-      return;
+    const io = req.app.get('io') as Server | undefined;
+    const connected = connectedWorkers.get(worker.id);
+    if (connected && io) {
+      const workerSocket = io.sockets.sockets.get(connected.socketId);
+      if (workerSocket) {
+        workerSocket.disconnect(true);
+      }
+      connectedWorkers.delete(worker.id);
     }
 
     await WorkerModel.delete(id);
-    res.json({ success: true });
+    res.json({ success: true, disconnected: Boolean(connected) });
   }
 }

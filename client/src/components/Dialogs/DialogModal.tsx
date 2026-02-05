@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { closeDialog, setDialogLoading } from '../../store';
 import type { DialogAction } from '../../store/slices/uiSlice';
@@ -12,6 +13,14 @@ export function DialogModal({ onAction }: DialogModalProps) {
   const dispatch = useAppDispatch();
   const dialog = useAppSelector((state) => state.ui.dialog);
   const dialogLoading = useAppSelector((state) => state.ui.dialogLoading);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(false);
+    if (!dialog) return;
+    const timer = setTimeout(() => setReady(true), 150);
+    return () => clearTimeout(timer);
+  }, [dialog]);
 
   if (!dialog) return null;
 
@@ -21,12 +30,12 @@ export function DialogModal({ onAction }: DialogModalProps) {
     : [{ label: 'Cerrar', variant: 'primary' }];
 
   const handleClose = () => {
-    if (dialogLoading) return;
+    if (dialogLoading || !ready) return;
     dispatch(closeDialog());
   };
 
   const handleAction = async (action: DialogAction) => {
-    if (dialogLoading) return;
+    if (dialogLoading || !ready) return;
 
     if (action.actionId && onAction) {
       dispatch(setDialogLoading(true));
@@ -63,7 +72,7 @@ export function DialogModal({ onAction }: DialogModalProps) {
               key={`${action.label}-${idx}`}
               className={`dialog-btn ${action.variant || 'primary'}`}
               onClick={() => handleAction(action)}
-              disabled={dialogLoading}
+              disabled={dialogLoading || !ready}
             >
               {dialogLoading && action.variant === 'danger' ? 'Procesando...' : action.label}
             </button>

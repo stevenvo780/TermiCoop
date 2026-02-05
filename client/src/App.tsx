@@ -400,6 +400,7 @@ function AppContent() {
         sessionsToClose.forEach((session) => handleCloseSession(session.id));
         dispatch(removeWorker(worker.id));
         refreshWorkers();
+        socketRef.current?.emit('register', { type: 'client' });
         dispatch(closeDialog());
       } else {
         const err = await res.json();

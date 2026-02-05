@@ -25,9 +25,12 @@ export function WorkerList({ onSelectWorker, onNewSession }: WorkerListProps) {
   const normalizeWorkerKey = (name: string) => name.trim().toLowerCase();
 
   const handleDeleteConfirm = (worker: Worker) => {
+    const isOnline = worker.status === 'online';
     dispatch(openDialog({
       title: 'Eliminar worker',
-      message: `¿Seguro que deseas eliminar ${worker.name}? Esta acción no se puede deshacer.`,
+      message: isOnline
+        ? `El worker ${worker.name} está en línea. Se desconectará y se eliminará. Esta acción no se puede deshacer.`
+        : `¿Seguro que deseas eliminar ${worker.name}? Esta acción no se puede deshacer.`,
       tone: 'danger',
       actions: [
         { label: 'Cancelar', variant: 'ghost' },
