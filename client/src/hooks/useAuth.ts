@@ -124,7 +124,7 @@ export function useAuth(): UseAuthReturn {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Password change failed');
+        throw new Error(data.error || 'Error al cambiar contraseña');
       }
       return true;
     } catch (err: unknown) {
@@ -153,7 +153,7 @@ export function useAuth(): UseAuthReturn {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Setup failed');
+        throw new Error(data.error || 'Error en la configuración inicial');
       }
 
       const data = await res.json();

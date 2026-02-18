@@ -47,11 +47,11 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store'
       });
-      if (!res.ok) throw new Error('Failed to fetch shares');
+      if (!res.ok) throw new Error('No se pudieron cargar los accesos');
       const data = await res.json();
       setShares(normalizeShares(data));
     } catch {
-      setError('Could not load shares');
+      setError('No se pudieron cargar los accesos');
     } finally {
       setLoading(false);
     }
@@ -81,7 +81,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to share');
+      if (!res.ok) throw new Error(data.error || 'No se pudo compartir');
 
       setNewUsername('');
       if (Array.isArray(data.shares)) {
@@ -90,7 +90,7 @@ export function ShareModal({ worker, onClose, nexusUrl, token }: ShareModalProps
         fetchShares();
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to share');
+      setError(err instanceof Error ? err.message : 'No se pudo compartir');
     } finally {
       setAdding(false);
     }

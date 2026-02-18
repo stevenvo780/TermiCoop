@@ -35,7 +35,7 @@ export class WorkerController {
   static async create(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
     const { name } = req.body;
-    if (!name) { res.status(400).json({ error: 'Name required' }); return; }
+    if (!name) { res.status(400).json({ error: 'Nombre requerido' }); return; }
 
     // Verificar límite de workers por plan
     const check = await canCreateWorker(req.user.userId);
@@ -57,7 +57,7 @@ export class WorkerController {
     if (!req.user) { res.status(401).send(); return; }
     const { workerId, targetUsername } = req.body;
 
-    if (!targetUsername) { res.status(400).json({ error: 'Username required' }); return; }
+    if (!targetUsername) { res.status(400).json({ error: 'Nombre de usuario requerido' }); return; }
 
     // Verificar que el plan permite compartir
     const shareCheck = await canShareWorker(req.user.userId);
@@ -70,20 +70,20 @@ export class WorkerController {
     }
 
     const worker = await WorkerModel.findById(workerId);
-    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+    if (!worker) { res.status(404).json({ error: 'Worker no encontrado' }); return; }
 
     const canManage = worker.owner_id === req.user.userId || req.user.isAdmin;
 
     if (!canManage) {
-      res.status(403).json({ error: 'Only owner or admin can share' });
+      res.status(403).json({ error: 'Solo el propietario o admin puede compartir' });
       return;
     }
 
     const targetUser = await UserModel.findByUsername(targetUsername);
-    if (!targetUser) { res.status(404).json({ error: 'User not found' }); return; }
+    if (!targetUser) { res.status(404).json({ error: 'Usuario no encontrado' }); return; }
 
     if (targetUser.id === worker.owner_id) {
-      res.status(400).json({ error: 'Cannot share with owner' });
+      res.status(400).json({ error: 'No puedes compartir con el propietario' });
       return;
     }
 
@@ -120,12 +120,12 @@ export class WorkerController {
     const workerId = req.params.id as string;
 
     const worker = await WorkerModel.findById(workerId);
-    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+    if (!worker) { res.status(404).json({ error: 'Worker no encontrado' }); return; }
 
     const canManage = worker.owner_id === req.user.userId || req.user.isAdmin;
 
     if (!canManage) {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'Acceso denegado' });
       return;
     }
 
@@ -139,23 +139,23 @@ export class WorkerController {
     const normalizedUserId = Number(targetUserId);
 
     const worker = await WorkerModel.findById(workerId);
-    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+    if (!worker) { res.status(404).json({ error: 'Worker no encontrado' }); return; }
 
     const canManage = worker.owner_id === req.user.userId || req.user.isAdmin;
 
     if (!canManage) {
-      res.status(403).json({ error: 'Only owner or admin can unshare' });
+      res.status(403).json({ error: 'Solo el propietario o admin puede quitar acceso' });
       return;
     }
 
     if (!Number.isFinite(normalizedUserId)) {
-      res.status(400).json({ error: 'Invalid targetUserId' });
+      res.status(400).json({ error: 'ID de usuario inválido' });
       return;
     }
 
     const changes = await WorkerModel.unshare(workerId, normalizedUserId);
     if (changes === 0) {
-      res.status(404).json({ error: 'Share not found' });
+      res.status(404).json({ error: 'Compartición no encontrada' });
       return;
     }
     const shares = await WorkerModel.getShares(workerId);
@@ -167,10 +167,10 @@ export class WorkerController {
     const id = req.params.id as string;
 
     const worker = await WorkerModel.findById(id);
-    if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }
+    if (!worker) { res.status(404).json({ error: 'Worker no encontrado' }); return; }
 
     if (worker.owner_id !== req.user.userId && !req.user.isAdmin) {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'Acceso denegado' });
       return;
     }
 
