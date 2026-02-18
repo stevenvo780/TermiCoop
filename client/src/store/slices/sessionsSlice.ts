@@ -18,6 +18,7 @@ export interface ServerSession {
   displayName: string;
   createdAt: number;
   lastActiveAt: number;
+  creatorUserId?: number;
 }
 
 const SESSION_STORE_KEY = 'ut-sessions-v1';

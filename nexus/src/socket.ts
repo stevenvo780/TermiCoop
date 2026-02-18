@@ -29,6 +29,7 @@ interface ActiveSession {
   workerKey: string;
   createdAt: number;
   lastActive: number;
+  creatorUserId?: number;
 }
 const activeSessions: Map<string, ActiveSession> = new Map();
 const sessionSubscribers: Map<string, Set<string>> = new Map();
@@ -144,6 +145,7 @@ export const initSocket = (httpServer: any) => {
         displayName: string;
         createdAt: number;
         lastActiveAt: number;
+        creatorUserId?: number;
       }> = [];
 
       for (const [workerId, sessions] of sessionsByWorker.entries()) {
@@ -157,6 +159,7 @@ export const initSocket = (httpServer: any) => {
             displayName: s.displayName,
             createdAt: s.createdAt,
             lastActiveAt: s.lastActive,
+            creatorUserId: s.creatorUserId,
           });
         });
       }
@@ -186,11 +189,13 @@ export const initSocket = (httpServer: any) => {
     }, SESSION_LIST_DEBOUNCE_MS);
   };
 
-  const ensureActiveSession = async (workerId: string, sessionIdRaw?: string, displayName?: string) => {
+  const ensureActiveSession = async (workerId: string, sessionIdRaw?: string, displayName?: string, userId?: number) => {
     const sessionId = normalizeSessionId(sessionIdRaw);
     const key = sessionKey(workerId, sessionId);
     let existing = activeSessions.get(key);
     if (existing) {
+      // Update creatorUserId if not set yet and we have it now
+      if (!existing.creatorUserId && userId) existing.creatorUserId = userId;
       return existing;
     }
 
@@ -213,7 +218,8 @@ export const initSocket = (httpServer: any) => {
       workerName,
       workerKey,
       createdAt: Date.now(),
-      lastActive: Date.now()
+      lastActive: Date.now(),
+      creatorUserId: userId,
     };
     activeSessions.set(key, existing);
     return existing;
@@ -360,7 +366,7 @@ export const initSocket = (httpServer: any) => {
         return;
       }
 
-      const session = await ensureActiveSession(msg.workerId, sessionId);
+      const session = await ensureActiveSession(msg.workerId, sessionId, undefined, data.user.userId);
       session.lastActive = Date.now();
       addSessionSubscriber(sessionId, socket.id);
       io.to(worker.socketId).emit('execute', {
@@ -386,7 +392,7 @@ export const initSocket = (httpServer: any) => {
         socket.emit('error', 'Worker no disponible (offline)');
         return;
       }
-      await ensureActiveSession(msg.workerId, sessionId);
+      await ensureActiveSession(msg.workerId, sessionId, undefined, data.user.userId);
       addSessionSubscriber(sessionId, socket.id);
       io.to(worker.socketId).emit('resize', {
         clientId: socket.id,
@@ -458,7 +464,7 @@ export const initSocket = (httpServer: any) => {
         const hasAccess = await WorkerModel.hasAccess(data.user.userId, workerId, 'control');
         if (!hasAccess) return;
 
-        await ensureActiveSession(workerId, sessionId, msg.displayName);
+        await ensureActiveSession(workerId, sessionId, msg.displayName, data.user.userId);
         addSessionSubscriber(sessionId, socket.id);
         scheduleSessionListBroadcast(true);
       }
@@ -479,7 +485,7 @@ export const initSocket = (httpServer: any) => {
       if (workerId) {
         const hasAccess = await WorkerModel.hasAccess(data.user.userId, workerId, 'view');
         if (hasAccess) {
-          const session = await ensureActiveSession(workerId, sessionId, msg.displayName);
+          const session = await ensureActiveSession(workerId, sessionId, msg.displayName, data.user.userId);
           session.lastActive = Date.now();
         }
       }
@@ -532,7 +538,13 @@ export const initSocket = (httpServer: any) => {
 
       const key = sessionKey(session.workerId, sessionId);
       activeSessions.delete(key);
-      removeSessionSubscriber(sessionId, socket.id);
+
+      // Notify ALL subscribers that this session was closed (cross-device sync)
+      const subs = sessionSubscribers.get(sessionId);
+      if (subs && subs.size > 0) {
+        io.to(Array.from(subs)).emit('session-closed', { sessionId });
+      }
+      sessionSubscribers.delete(sessionId);
       scheduleSessionListBroadcast(true);
     });
 

@@ -588,6 +588,23 @@ function AppContent() {
             message: data.message,
           });
         });
+
+        socket.on('session-closed', (data: { sessionId: string }) => {
+          // A session was closed (possibly from another device)
+          const instance = terminalInstancesRef.current.get(data.sessionId);
+          if (instance) {
+            window.removeEventListener('resize', instance.resizeHandler);
+            instance.terminal.dispose();
+            instance.containerRef.remove();
+            terminalInstancesRef.current.delete(data.sessionId);
+            bumpInstancesVersion();
+          }
+          pendingSessionIdsRef.current.delete(data.sessionId);
+          joinedSessionIdsRef.current.delete(data.sessionId);
+          delete outputBufferRef.current[data.sessionId];
+          delete terminalWriteBufferRef.current[data.sessionId];
+          dispatch(removeSession(data.sessionId));
+        });
       })
       .catch(() => {
         dispatch(logoutAndReset());
@@ -702,6 +719,58 @@ function AppContent() {
     });
     dispatch(setOfflineSessionIds(offlineIds));
   }, [sessions, workers, dispatch, normalizeWorkerKey]);
+
+  // Cross-device session sync: auto-adopt server sessions belonging to current user
+  useEffect(() => {
+    if (connectionState !== 'connected') return;
+    if (!terminalContainerRef.current) return;
+    const socket = socketRef.current;
+    if (!socket) return;
+    const currentUser = store.getState().auth.currentUser;
+    if (!currentUser) return;
+
+    const localIds = new Set(sessions.map(s => s.id));
+    const serverIds = new Set(serverSessions.map(s => s.id));
+
+    // Auto-join: server sessions created by current user that aren't local yet
+    serverSessions.forEach((serverSession) => {
+      if (serverSession.creatorUserId !== currentUser.userId) return;
+      if (localIds.has(serverSession.id)) return;
+      if (pendingSessionIdsRef.current.has(serverSession.id)) return;
+
+      const worker = workers.find(w => w.id === serverSession.workerId);
+      if (!worker || worker.status === 'offline') return;
+
+      createNewSession(worker, {
+        sessionId: serverSession.id,
+        displayName: serverSession.displayName,
+        createdAt: serverSession.createdAt,
+        lastActiveAt: serverSession.lastActiveAt,
+        focus: false,
+      });
+    });
+
+    // Auto-remove: local sessions that no longer exist on server (closed from other device)
+    sessions.forEach((session) => {
+      if (serverIds.has(session.id)) return;
+      // Only trust server list for online workers
+      const worker = workers.find(w => w.id === session.workerId || normalizeWorkerKey(w.name) === session.workerKey);
+      if (!worker || worker.status === 'offline') return;
+
+      // Clean up locally without emitting close-session to server
+      const instance = terminalInstancesRef.current.get(session.id);
+      if (instance) {
+        window.removeEventListener('resize', instance.resizeHandler);
+        instance.terminal.dispose();
+        instance.containerRef.remove();
+        terminalInstancesRef.current.delete(session.id);
+        bumpInstancesVersion();
+      }
+      pendingSessionIdsRef.current.delete(session.id);
+      joinedSessionIdsRef.current.delete(session.id);
+      dispatch(removeSession(session.id));
+    });
+  }, [serverSessions, sessions, workers, connectionState, createNewSession, dispatch, normalizeWorkerKey, bumpInstancesVersion]);
 
   // Terminal visibility is now handled by TerminalGrid's reparenting logic
   // We only need to trigger fits occasionally if layout changes drastically
