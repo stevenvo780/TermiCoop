@@ -254,6 +254,13 @@ export class PaymentService {
         const plan = match[2];
         if (status === 'approved') {
           await setUserPlan(userId, plan);
+          // Find the payment record to activate subscription
+          const userPayments = await PaymentModel.findByUserId(userId);
+          const latestPending = userPayments.find(p => p.plan === plan && !p.subscription_start);
+          if (latestPending) {
+            await PaymentModel.updateStatus(latestPending.preference_id, status, paymentId);
+            await this.activateSubscription(latestPending.id, userId);
+          }
           console.log(`[Payment] Plan actualizado via callback (ref): user=${userId} plan=${plan}`);
         }
         return { processed: true, status, plan };
@@ -375,7 +382,7 @@ export class PaymentService {
   /**
    * Get subscriptions expiring within N days (for warnings/notifications).
    */
-  static async getExpiringSubscriptions(withinDays: number = 5) {
+  static async getExpiringSubscriptions(withinDays: number = 5): Promise<{ userId: number; plan: string; subscriptionEnd: string | null }[]> {
     const expiring = await PaymentModel.getExpiringSubscriptions(withinDays);
     return expiring.map(p => ({
       userId: p.user_id,

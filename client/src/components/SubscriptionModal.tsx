@@ -52,6 +52,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   approved: { label: 'Aprobado', color: '#10b981' },
   pending: { label: 'Pendiente', color: '#f59e0b' },
   rejected: { label: 'Rechazado', color: '#ef4444' },
+  expired: { label: 'Expirado', color: '#9ca3af' },
   in_process: { label: 'En proceso', color: '#3b82f6' },
   cancelled: { label: 'Cancelado', color: '#6b7280' },
 };
