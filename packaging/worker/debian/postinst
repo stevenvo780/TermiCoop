@@ -31,26 +31,27 @@ EOF
     chmod 600 /etc/ultimate-terminal/worker.env
 fi
 
-# Enable and start service
-systemctl daemon-reload
-systemctl enable ultimate-terminal-worker.service || true
+# Enable and start service (only if systemd is available)
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload
+  systemctl enable ultimate-terminal-worker.service || true
+fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║         Ultimate Terminal Worker installed!                  ║"
+echo "║      Ultimate Terminal Worker instalado correctamente       ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
-echo "║  1. Configure your API Key:                                  ║"
-echo "║     sudo nano /etc/ultimate-terminal/worker.env              ║"
-echo "║                                                              ║"
-echo "║  2. Start the service:                                       ║"
-echo "║     sudo systemctl start ultimate-terminal-worker            ║"
-
-echo "║                                                              ║"
-echo "║  3. Check status:                                            ║"
-echo "║     sudo systemctl status ultimate-terminal-worker           ║"
-echo "║                                                              ║"
-echo "║  4. View logs:                                               ║"
-echo "║     sudo journalctl -u ultimate-terminal-worker -f           ║"
+echo "║  1. Configura tu API Key:                                   ║"
+echo "║     sudo nano /etc/ultimate-terminal/worker.env             ║"
+echo "║                                                             ║"
+echo "║  2. Inicia el servicio:                                     ║"
+echo "║     sudo systemctl start ultimate-terminal-worker           ║"
+echo "║                                                             ║"
+echo "║  3. Verifica el estado:                                     ║"
+echo "║     sudo systemctl status ultimate-terminal-worker          ║"
+echo "║                                                             ║"
+echo "║  4. Ver logs:                                               ║"
+echo "║     sudo journalctl -u ultimate-terminal-worker -f          ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 

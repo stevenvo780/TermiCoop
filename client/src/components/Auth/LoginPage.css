@@ -1138,6 +1138,7 @@
   .faq-section,
   .pricing-section,
   .how-it-works-section,
+  .install-docs-section,
   .stats-section { padding: 36px 12px; }
   .faq-item summary { font-size: 0.82rem; padding: 12px 12px; }
   .faq-item p { padding: 0 12px 12px 36px; }
@@ -1145,4 +1146,158 @@
   .feature-card,
   .use-case-card,
   .step-card { padding: 16px; }
+  .install-docs-tabs { flex-wrap: wrap; gap: 4px; }
+  .install-docs-tab { font-size: 0.75rem; padding: 6px 10px; }
+  .install-docs-code { font-size: 0.7rem; }
+}
+
+/* ─── Install Docs Section ─── */
+.install-docs-section {
+  padding: 80px 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.install-docs-section .section-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.install-docs-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.install-docs-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #8b8fa3;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.install-docs-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #c0c4d8;
+}
+
+.install-docs-tab.active {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: #a78bfa;
+}
+
+.install-docs-panel {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 28px;
+}
+
+.install-docs-panel h3 {
+  color: #e2e8f0;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.install-docs-panel > p {
+  color: #8b8fa3;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.install-docs-code-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.install-docs-code {
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: #7ee787;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.install-docs-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.6);
+  color: #8b8fa3;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.install-docs-copy:hover {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.install-docs-note {
+  background: rgba(139, 92, 246, 0.06);
+  border-left: 3px solid rgba(139, 92, 246, 0.4);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  color: #8b8fa3;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.install-docs-note strong {
+  color: #c0c4d8;
+}
+
+.install-docs-note code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  color: #7ee787;
+}
+
+.install-docs-note a {
+  color: #a78bfa;
+  text-decoration: underline;
+}
+
+.install-docs-distros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.distro-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #8b8fa3;
+  font-size: 0.72rem;
 }

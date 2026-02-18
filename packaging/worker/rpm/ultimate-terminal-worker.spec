@@ -51,19 +51,23 @@ EOF
     chmod 600 /etc/ultimate-terminal/worker.env
 fi
 
-systemctl daemon-reload
-systemctl enable ultimate-terminal-worker.service || true
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload
+  systemctl enable ultimate-terminal-worker.service || true
+fi
 
 echo ""
-echo "Ultimate Terminal Worker installed!"
-echo "Edit /etc/ultimate-terminal/worker.env and run:"
+echo "Ultimate Terminal Worker instalado correctamente."
+echo "Edita /etc/ultimate-terminal/worker.env y ejecuta:"
 echo "  sudo systemctl start ultimate-terminal-worker"
 echo ""
 
 %preun
 if [ $1 -eq 0 ]; then
+  if command -v systemctl >/dev/null 2>&1; then
     systemctl stop ultimate-terminal-worker.service || true
     systemctl disable ultimate-terminal-worker.service || true
+  fi
 fi
 
 %postun
@@ -71,7 +75,9 @@ if [ $1 -eq 0 ]; then
     userdel utworker || true
     rm -rf /etc/ultimate-terminal
 fi
-systemctl daemon-reload || true
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload || true
+fi
 
 %files
 /usr/bin/ultimate-terminal-worker

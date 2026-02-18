@@ -6,7 +6,7 @@
   "bin": "dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/scripts && cp src/scripts/*.sh dist/scripts/ 2>/dev/null || true",
     "package": "npm run build && npx @yao-pkg/pkg . --targets node22-linux-x64 --output bin/nexus-linux",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

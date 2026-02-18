@@ -1,13 +1,15 @@
 #!/bin/bash
 set -e
 
-# Stop and disable service before removal
-if systemctl is-active --quiet ultimate-terminal-worker.service; then
-    systemctl stop ultimate-terminal-worker.service || true
-fi
+# Stop and disable service before removal (only if systemd is available)
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl is-active --quiet ultimate-terminal-worker.service 2>/dev/null; then
+      systemctl stop ultimate-terminal-worker.service || true
+  fi
 
-if systemctl is-enabled --quiet ultimate-terminal-worker.service 2>/dev/null; then
-    systemctl disable ultimate-terminal-worker.service || true
+  if systemctl is-enabled --quiet ultimate-terminal-worker.service 2>/dev/null; then
+      systemctl disable ultimate-terminal-worker.service || true
+  fi
 fi
 
 exit 0

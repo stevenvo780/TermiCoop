@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Hexagon, TriangleAlert, Terminal, Globe, Shield, Zap, Users, Server,
   Check, Crown, Gift, Sparkles, ChevronDown, ArrowRight, Download, MonitorSmartphone,
-  Network, Lock, Cpu, Workflow, ChevronRight, HelpCircle, Rocket, Clock, Activity, Eye
+  Network, Lock, Cpu, Workflow, ChevronRight, HelpCircle, Rocket, Clock, Activity, Eye,
+  Copy, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import './LoginPage.css';
@@ -61,8 +62,11 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [showLogin, setShowLogin] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [installTab, setInstallTab] = useState<'quick' | 'deb' | 'rpm' | 'manual'>('quick');
   const loginRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
+  const installRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`${NEXUS_URL}/api/payments/plans`)
@@ -84,6 +88,12 @@ export function LoginPage() {
     ref.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const copyInstall = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
   return (
     <div className="landing-layout">
       <div className="landing-decoration">
@@ -98,6 +108,7 @@ export function LoginPage() {
             <span>TermiCoop</span>
           </div>
           <div className="nav-links">
+            <button onClick={() => scrollTo(installRef)} className="nav-link">Instalar</button>
             <button onClick={() => scrollTo(pricingRef)} className="nav-link">Planes</button>
             <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }} className="nav-link">Iniciar Sesión</button>
             <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }} className="nav-cta">
@@ -188,6 +199,145 @@ export function LoginPage() {
             <h3>Conecta y gestiona</h3>
             <p>Abre tu navegador, selecciona un worker y tendrás una terminal completa al instante.</p>
           </div>
+        </div>
+      </section>
+
+      {/* ─── Guía de Instalación ─── */}
+      <section className="install-docs-section" ref={installRef}>
+        <h2 className="section-title"><BookOpen size={28} /> Guía de Instalación</h2>
+        <p className="section-subtitle">Instala el worker en tu servidor con un solo comando. Compatible con las principales distribuciones Linux.</p>
+
+        <div className="install-docs-tabs">
+          <button className={`install-docs-tab ${installTab === 'quick' ? 'active' : ''}`} onClick={() => setInstallTab('quick')}>
+            <Rocket size={16} /> Rápida
+          </button>
+          <button className={`install-docs-tab ${installTab === 'deb' ? 'active' : ''}`} onClick={() => setInstallTab('deb')}>
+            <Download size={16} /> Debian / Ubuntu
+          </button>
+          <button className={`install-docs-tab ${installTab === 'rpm' ? 'active' : ''}`} onClick={() => setInstallTab('rpm')}>
+            <Download size={16} /> RHEL / Fedora
+          </button>
+          <button className={`install-docs-tab ${installTab === 'manual' ? 'active' : ''}`} onClick={() => setInstallTab('manual')}>
+            <Terminal size={16} /> Manual
+          </button>
+        </div>
+
+        <div className="install-docs-content">
+          {installTab === 'quick' && (
+            <div className="install-docs-panel">
+              <h3>Instalación rápida (recomendada)</h3>
+              <p>Detecta tu distribución automáticamente, descarga el paquete correcto y configura el servicio.</p>
+              <div className="install-docs-code-wrap">
+                <pre className="install-docs-code">{`curl -fsSL https://terminal.humanizar-dev.cloud/install.sh | sudo NEXUS_URL=https://terminal.humanizar-dev.cloud bash -s -- <TU_API_KEY>`}</pre>
+                <button className="install-docs-copy" onClick={() => copyInstall('curl -fsSL https://terminal.humanizar-dev.cloud/install.sh | sudo NEXUS_URL=https://terminal.humanizar-dev.cloud bash -s -- <TU_API_KEY>', 'quick')}>
+                  <Copy size={14} /> {copied === 'quick' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <div className="install-docs-note">
+                <strong>Distros soportadas:</strong> Ubuntu 20.04/22.04/24.04, Debian 11/12, RHEL 8/9, Rocky 8/9, AlmaLinux 8/9, Fedora 39-42, CentOS 7/8.
+              </div>
+              <div className="install-docs-note">
+                <strong>Opcional:</strong> agrega <code>WORKER_NAME="mi-servidor"</code> para asignar un nombre visible.
+              </div>
+            </div>
+          )}
+
+          {installTab === 'deb' && (
+            <div className="install-docs-panel">
+              <h3>Debian / Ubuntu (.deb)</h3>
+              <p>Descarga e instala el paquete .deb directamente.</p>
+              <div className="install-docs-code-wrap">
+                <pre className="install-docs-code">{`# Descargar paquete
+curl -fL "https://terminal.humanizar-dev.cloud/api/downloads/latest/worker-linux.deb?os=ubuntu&version=22.04&arch=amd64" -o worker.deb
+
+# Instalar
+sudo dpkg -i worker.deb || sudo apt-get install -f -y
+
+# Configurar API Key
+sudo nano /etc/ultimate-terminal/worker.env
+
+# Iniciar servicio
+sudo systemctl start ultimate-terminal-worker`}</pre>
+                <button className="install-docs-copy" onClick={() => copyInstall(`curl -fL "https://terminal.humanizar-dev.cloud/api/downloads/latest/worker-linux.deb?os=ubuntu&version=22.04&arch=amd64" -o worker.deb\nsudo dpkg -i worker.deb || sudo apt-get install -f -y`, 'deb')}>
+                  <Copy size={14} /> {copied === 'deb' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <div className="install-docs-note">
+                Cambia <code>os=ubuntu&version=22.04</code> según tu distro: <code>debian/12</code>, <code>linuxmint</code>, <code>pop</code>, <code>kali</code>.
+              </div>
+              <div className="install-docs-distros">
+                <span className="distro-badge">Ubuntu 20.04</span>
+                <span className="distro-badge">Ubuntu 22.04</span>
+                <span className="distro-badge">Ubuntu 24.04</span>
+                <span className="distro-badge">Debian 11</span>
+                <span className="distro-badge">Debian 12</span>
+                <span className="distro-badge">Linux Mint</span>
+              </div>
+            </div>
+          )}
+
+          {installTab === 'rpm' && (
+            <div className="install-docs-panel">
+              <h3>RHEL / Fedora (.rpm)</h3>
+              <p>Descarga e instala el paquete .rpm para distribuciones basadas en Red Hat.</p>
+              <div className="install-docs-code-wrap">
+                <pre className="install-docs-code">{`# Descargar paquete
+curl -fL "https://terminal.humanizar-dev.cloud/api/downloads/latest/worker-linux.rpm?os=rocky&version=9&arch=x86_64" -o worker.rpm
+
+# Instalar
+sudo rpm -Uvh worker.rpm
+
+# Configurar API Key
+sudo nano /etc/ultimate-terminal/worker.env
+
+# Iniciar servicio
+sudo systemctl start ultimate-terminal-worker`}</pre>
+                <button className="install-docs-copy" onClick={() => copyInstall(`curl -fL "https://terminal.humanizar-dev.cloud/api/downloads/latest/worker-linux.rpm?os=rocky&version=9&arch=x86_64" -o worker.rpm\nsudo rpm -Uvh worker.rpm`, 'rpm')}>
+                  <Copy size={14} /> {copied === 'rpm' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <div className="install-docs-note">
+                Opciones de <code>os=</code>: <code>rhel</code>, <code>rocky</code>, <code>alma</code>, <code>centos</code>, <code>fedora</code>.
+              </div>
+              <div className="install-docs-distros">
+                <span className="distro-badge">RHEL 8/9</span>
+                <span className="distro-badge">Rocky 8/9</span>
+                <span className="distro-badge">AlmaLinux 8/9</span>
+                <span className="distro-badge">Fedora 39-42</span>
+                <span className="distro-badge">CentOS 7/8</span>
+              </div>
+            </div>
+          )}
+
+          {installTab === 'manual' && (
+            <div className="install-docs-panel">
+              <h3>Configuración manual</h3>
+              <p>Si ya instalaste el paquete por otro medio, configura la API key y reinicia el servicio.</p>
+              <div className="install-docs-code-wrap">
+                <pre className="install-docs-code">{`# Crear directorio de configuración
+sudo mkdir -p /etc/ultimate-terminal
+
+# Configurar variables
+sudo bash -c 'cat > /etc/ultimate-terminal/worker.env << EOF
+NEXUS_URL=https://terminal.humanizar-dev.cloud
+API_KEY=<TU_API_KEY>
+WORKER_NAME=<NOMBRE_OPCIONAL>
+EOF'
+
+# Reiniciar servicio
+sudo systemctl restart ultimate-terminal-worker
+
+# Verificar estado
+sudo systemctl status ultimate-terminal-worker`}</pre>
+                <button className="install-docs-copy" onClick={() => copyInstall(`sudo mkdir -p /etc/ultimate-terminal\nsudo bash -c 'cat > /etc/ultimate-terminal/worker.env << EOF\nNEXUS_URL=https://terminal.humanizar-dev.cloud\nAPI_KEY=<TU_API_KEY>\nWORKER_NAME=<NOMBRE_OPCIONAL>\nEOF'`, 'manual')}>
+                  <Copy size={14} /> {copied === 'manual' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <div className="install-docs-note">
+                <strong>Arch Linux:</strong> No hay paquete oficial. Usa la instalación rápida o compila desde fuente con el <a href="https://github.com/stevenvo780/TermiCoop" target="_blank" rel="noopener noreferrer">código fuente</a>.
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -410,6 +560,7 @@ export function LoginPage() {
           </div>
           <div className="footer-links">
             <a href="https://github.com/stevenvo780/TermiCoop" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <button onClick={() => scrollTo(installRef)}>Instalar</button>
             <button onClick={() => scrollTo(pricingRef)}>Planes</button>
             <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}>Iniciar Sesión</button>
           </div>
