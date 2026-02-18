@@ -69,7 +69,7 @@ export const RenameSessionModal: React.FC<RenameSessionModalProps> = ({
             <button type="button" className="dialog-btn ghost" onClick={onClose}>
               Cancelar
             </button>
-            <button type="submit" className="dialog-btn">
+            <button type="submit" className="dialog-btn" disabled={!name.trim()}>
               Guardar
             </button>
           </div>

@@ -2,11 +2,13 @@
 
 /* ─── Layout ─── */
 .landing-layout {
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, #050508 0%, #0a0f1a 50%, #0f1628 100%);
   color: #e7e7e7;
   position: relative;
   overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -354,6 +356,309 @@
   line-height: 1.5;
 }
 
+/* ─── How It Works ─── */
+.how-it-works-section {
+  position: relative;
+  z-index: 1;
+  padding: 80px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.steps-grid {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.step-card {
+  flex: 1;
+  min-width: 220px;
+  max-width: 320px;
+  text-align: center;
+  padding: 32px 24px;
+  background: linear-gradient(145deg, rgba(15, 22, 36, 0.7), rgba(10, 15, 26, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  position: relative;
+  transition: border-color 300ms, transform 300ms;
+}
+
+.step-card:hover {
+  border-color: rgba(96, 165, 250, 0.2);
+  transform: translateY(-4px);
+}
+
+.step-number {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+}
+
+.step-icon {
+  color: #60a5fa;
+  margin-bottom: 16px;
+}
+
+.step-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e7e7e7;
+}
+
+.step-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #7b8ca3;
+  line-height: 1.55;
+}
+
+.step-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  padding: 0 8px;
+  margin-top: 60px;
+}
+
+/* ─── Stats ─── */
+.stats-section {
+  position: relative;
+  z-index: 1;
+  padding: 60px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 32px 16px;
+  background: linear-gradient(145deg, rgba(15, 22, 36, 0.5), rgba(10, 15, 26, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  transition: border-color 300ms;
+}
+
+.stat-card:hover {
+  border-color: rgba(96, 165, 250, 0.15);
+}
+
+.stat-icon {
+  color: #60a5fa;
+  margin-bottom: 12px;
+}
+
+.stat-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #f0f0f5;
+  letter-spacing: -1px;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #6b7c93;
+}
+
+/* ─── Use Cases ─── */
+.use-cases-section {
+  position: relative;
+  z-index: 1;
+  padding: 80px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.use-cases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.use-case-card {
+  background: linear-gradient(145deg, rgba(15, 22, 36, 0.7), rgba(10, 15, 26, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 28px;
+  transition: border-color 300ms, transform 300ms;
+}
+
+.use-case-card:hover {
+  border-color: rgba(168, 85, 247, 0.25);
+  transform: translateY(-4px);
+}
+
+.use-case-icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(168, 85, 247, 0.1);
+  border-radius: 12px;
+  color: #a855f7;
+  margin-bottom: 16px;
+}
+
+.use-case-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e7e7e7;
+}
+
+.use-case-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #7b8ca3;
+  line-height: 1.6;
+}
+
+/* ─── FAQ ─── */
+.faq-section {
+  position: relative;
+  z-index: 1;
+  padding: 80px 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.faq-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faq-item {
+  background: linear-gradient(145deg, rgba(15, 22, 36, 0.7), rgba(10, 15, 26, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 300ms;
+}
+
+.faq-item:hover {
+  border-color: rgba(96, 165, 250, 0.15);
+}
+
+.faq-item[open] {
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+.faq-item summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #cdd6f4;
+  cursor: pointer;
+  list-style: none;
+  transition: color 200ms;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::after {
+  content: '+';
+  margin-left: auto;
+  font-size: 1.3rem;
+  font-weight: 300;
+  color: #6b7c93;
+  transition: transform 300ms;
+}
+
+.faq-item[open] summary::after {
+  content: '−';
+  color: #60a5fa;
+}
+
+.faq-item summary:hover {
+  color: #fff;
+}
+
+.faq-item summary svg {
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+
+.faq-item p {
+  margin: 0;
+  padding: 0 24px 18px 54px;
+  font-size: 0.88rem;
+  color: #7b8ca3;
+  line-height: 1.6;
+}
+
+/* ─── Final CTA ─── */
+.final-cta-section {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 100px 24px;
+  overflow: hidden;
+}
+
+.cta-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 300px;
+  background: radial-gradient(ellipse, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.final-cta-section h2 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 800;
+  margin: 0 0 16px;
+  color: #f0f0f5;
+  letter-spacing: -0.5px;
+}
+
+.final-cta-section p {
+  font-size: 1.1rem;
+  color: #7b8ca3;
+  max-width: 520px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+}
+
+.cta-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* ─── Pricing ─── */
 .pricing-section {
   position: relative;
@@ -689,6 +994,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .footer-brand {
@@ -699,6 +1006,28 @@
   font-weight: 600;
 }
 
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-links a,
+.footer-links button {
+  background: none;
+  border: none;
+  color: #6b7c93;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 200ms;
+}
+
+.footer-links a:hover,
+.footer-links button:hover {
+  color: #93c5fd;
+}
+
 .footer-inner p {
   margin: 0;
   font-size: 0.8rem;
@@ -707,9 +1036,113 @@
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
+  /* Navbar */
   .nav-links .nav-link { display: none; }
+  .nav-inner { padding: 0 16px; }
+  .nav-cta { padding: 6px 14px; font-size: 0.8rem; }
+  .nav-brand { font-size: 1rem; gap: 6px; }
+  .nav-brand svg { width: 20px; height: 20px; }
+
+  /* Hero */
+  .hero-section { padding: 80px 16px 40px; min-height: auto; }
+  .hero-title { font-size: clamp(1.6rem, 7vw, 2.4rem); letter-spacing: -0.5px; word-break: break-word; }
+  .hero-desc { font-size: 0.95rem; max-width: 100%; padding: 0 8px; }
+  .hero-badge { font-size: 0.78rem; padding: 5px 12px; }
+  .hero-actions { flex-direction: column; align-items: center; gap: 10px; margin-bottom: 32px; }
+  .btn-hero-primary,
+  .btn-hero-secondary { width: 100%; justify-content: center; padding: 12px 20px; font-size: 0.9rem; box-sizing: border-box; }
+
+  /* Terminal mockup */
+  .hero-terminal { font-size: 0.65rem; max-width: 100%; }
+  .terminal-body { padding: 12px; overflow-x: auto; }
+  .terminal-line { white-space: pre-wrap; word-break: break-all; }
+  .terminal-header { padding: 8px 12px; }
+  .terminal-dot { width: 10px; height: 10px; }
+  .terminal-title { font-size: 0.65rem; }
+
+  /* Sections */
+  .section-title { font-size: 1.5rem; }
+  .section-subtitle { font-size: 0.9rem; padding: 0 8px; }
+  .features-section,
+  .use-cases-section,
+  .faq-section,
+  .pricing-section,
+  .how-it-works-section,
+  .stats-section { padding: 48px 16px; }
+
+  /* Grids */
   .features-grid { grid-template-columns: 1fr; }
   .pricing-grid { grid-template-columns: 1fr; }
+  .use-cases-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  /* Steps */
+  .step-connector { display: none; }
+  .steps-grid { flex-direction: column; align-items: stretch; gap: 24px; }
+  .step-card { max-width: 100%; min-width: auto; }
+
+  /* Cards */
+  .feature-card,
+  .use-case-card,
+  .pricing-card,
+  .step-card { padding: 20px; }
+  .feature-card h3,
+  .use-case-card h3 { font-size: 1rem; }
+  .feature-card p,
+  .use-case-card p { font-size: 0.85rem; }
+
+  /* Stats */
+  .stat-value { font-size: 1.7rem; }
+  .stat-card { padding: 20px 12px; }
+
+  /* FAQ */
+  .faq-item summary { padding: 14px 16px; font-size: 0.88rem; gap: 8px; }
+  .faq-item p { padding: 0 16px 14px 42px; font-size: 0.82rem; }
+
+  /* Pricing */
+  .pricing-price { font-size: 1.6rem; }
+  .pricing-features li { font-size: 0.8rem; }
+
+  /* CTA */
+  .final-cta-section { padding: 60px 16px; }
+  .final-cta-section h2 { font-size: 1.5rem; }
+  .final-cta-section p { font-size: 0.95rem; }
+  .cta-actions { flex-direction: column; align-items: stretch; }
+  .cta-actions .btn-hero-primary,
+  .cta-actions .btn-hero-secondary { width: 100%; justify-content: center; box-sizing: border-box; text-decoration: none; }
+
+  /* Login */
+  .login-section { padding: 40px 16px; }
+  .login-container { padding: 24px; width: 100%; }
+  .login-actions { flex-direction: column; gap: 8px; }
+  .btn-primary, .btn-secondary { width: 100%; }
+  .login-logo h1 { font-size: 1.3rem; }
+
+  /* Footer */
   .footer-inner { flex-direction: column; gap: 12px; text-align: center; }
-  .hero-terminal { font-size: 0.7rem; }
+  .footer-links { justify-content: center; flex-wrap: wrap; }
+}
+
+@media (max-width: 380px) {
+  .hero-section { padding: 72px 12px 32px; }
+  .hero-title { font-size: 1.4rem; }
+  .hero-desc { font-size: 0.88rem; }
+  .nav-cta { padding: 5px 10px; font-size: 0.75rem; gap: 4px; }
+  .nav-brand { font-size: 0.95rem; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat-value { font-size: 1.5rem; }
+  .section-title { font-size: 1.3rem; }
+  .terminal-body { font-size: 0.58rem; padding: 10px; }
+  .features-section,
+  .use-cases-section,
+  .faq-section,
+  .pricing-section,
+  .how-it-works-section,
+  .stats-section { padding: 36px 12px; }
+  .faq-item summary { font-size: 0.82rem; padding: 12px 12px; }
+  .faq-item p { padding: 0 12px 12px 36px; }
+  .pricing-card,
+  .feature-card,
+  .use-case-card,
+  .step-card { padding: 16px; }
 }

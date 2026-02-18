@@ -326,7 +326,7 @@ export const initSocket = (httpServer: any) => {
 
       const hasAccess = await WorkerModel.hasAccess(data.user.userId, msg.workerId, 'control');
       if (!hasAccess) {
-        socket.emit('error', 'Access denied to worker');
+        socket.emit('error', 'Acceso denegado al worker');
         return;
       }
 
@@ -356,7 +356,7 @@ export const initSocket = (httpServer: any) => {
 
       const worker = workers.get(msg.workerId);
       if (!worker) {
-        socket.emit('error', 'Worker is offline');
+        socket.emit('error', 'Worker no disponible (offline)');
         return;
       }
 
@@ -378,12 +378,12 @@ export const initSocket = (httpServer: any) => {
 
       const hasAccess = await WorkerModel.hasAccess(data.user.userId, msg.workerId, 'control');
       if (!hasAccess) {
-        socket.emit('error', 'Access denied to worker');
+        socket.emit('error', 'Acceso denegado al worker');
         return;
       }
       const worker = workers.get(msg.workerId);
       if (!worker) {
-        socket.emit('error', 'Worker is offline');
+        socket.emit('error', 'Worker no disponible (offline)');
         return;
       }
       await ensureActiveSession(msg.workerId, sessionId);
@@ -434,7 +434,7 @@ export const initSocket = (httpServer: any) => {
       if (hasAccess) {
         socket.join(`worker:${msg.workerId}`);
       } else {
-        socket.emit('error', 'Access denied');
+        socket.emit('error', 'Acceso denegado');
       }
     });
 

@@ -9,19 +9,19 @@ export class AuthService {
     if (username) {
       user = await UserModel.findByUsername(username.trim());
       if (!user) {
-        throw new Error('Invalid credentials');
+        throw new Error('Credenciales incorrectas');
       }
     } else {
       const admin = await UserModel.findFirstAdmin();
       user = admin || await UserModel.findFirstUser();
       if (!user) {
-        throw new Error('Invalid credentials');
+        throw new Error('Credenciales incorrectas');
       }
     }
 
     const isValid = verifyPassword(password, user.password_hash, user.salt);
     if (!isValid) {
-      throw new Error('Invalid credentials');
+      throw new Error('Credenciales incorrectas');
     }
 
     const payload: JwtPayload = {
@@ -35,7 +35,7 @@ export class AuthService {
 
   static async register(username: string, password: string, forceAdmin = false) {
     if (await UserModel.findByUsername(username)) {
-      throw new Error('Username already exists');
+      throw new Error('El nombre de usuario ya existe');
     }
 
     // Check if it's the first user by ID=1 or just count?
@@ -57,11 +57,11 @@ export class AuthService {
   static async changePassword(userId: number, currentPassword: string, newPassword: string) {
     const user = await UserModel.findById(userId);
     if (!user) {
-      throw new Error('User not found');
+      throw new Error('Usuario no encontrado');
     }
     const isValid = verifyPassword(currentPassword, user.password_hash, user.salt);
     if (!isValid) {
-      throw new Error('Current password is incorrect');
+      throw new Error('La contraseña actual es incorrecta');
     }
     await UserModel.updatePassword(userId, newPassword);
   }

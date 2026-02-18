@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Hexagon, TriangleAlert, Terminal, Globe, Shield, Zap, Users, Server,
-  Check, Crown, Gift, Sparkles, ChevronDown, ArrowRight
+  Check, Crown, Gift, Sparkles, ChevronDown, ArrowRight, Download, MonitorSmartphone,
+  Network, Lock, Cpu, Workflow, ChevronRight, HelpCircle, Rocket, Clock, Activity, Eye
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import './LoginPage.css';
@@ -162,6 +163,130 @@ export function LoginPage() {
         </div>
       </section>
 
+      {/* ─── How It Works ─── */}
+      <section className="how-it-works-section">
+        <h2 className="section-title">¿Cómo funciona?</h2>
+        <p className="section-subtitle">En tres simples pasos estarás conectado a tus servidores.</p>
+        <div className="steps-grid">
+          <div className="step-card">
+            <div className="step-number">1</div>
+            <div className="step-icon"><Rocket size={32} /></div>
+            <h3>Crea tu cuenta</h3>
+            <p>Regístrate gratis en segundos. No necesitas tarjeta de crédito para empezar.</p>
+          </div>
+          <div className="step-connector"><ChevronRight size={24} /></div>
+          <div className="step-card">
+            <div className="step-number">2</div>
+            <div className="step-icon"><Download size={32} /></div>
+            <h3>Instala el Worker</h3>
+            <p>Descarga e instala el agente ligero en cada servidor que quieras controlar. Un solo comando.</p>
+          </div>
+          <div className="step-connector"><ChevronRight size={24} /></div>
+          <div className="step-card">
+            <div className="step-number">3</div>
+            <div className="step-icon"><MonitorSmartphone size={32} /></div>
+            <h3>Conecta y gestiona</h3>
+            <p>Abre tu navegador, selecciona un worker y tendrás una terminal completa al instante.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Stats ─── */}
+      <section className="stats-section">
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon"><Activity size={28} /></div>
+            <div className="stat-value">99.9%</div>
+            <div className="stat-label">Uptime garantizado</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon"><Clock size={28} /></div>
+            <div className="stat-value">&lt;50ms</div>
+            <div className="stat-label">Latencia promedio</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon"><Shield size={28} /></div>
+            <div className="stat-value">E2E</div>
+            <div className="stat-label">Cifrado en tránsito</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon"><Server size={28} /></div>
+            <div className="stat-value">∞</div>
+            <div className="stat-label">Workers ilimitados (Pro+)</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Use Cases ─── */}
+      <section className="use-cases-section">
+        <h2 className="section-title">Casos de Uso</h2>
+        <p className="section-subtitle">TermiCoop se adapta a múltiples escenarios profesionales.</p>
+        <div className="use-cases-grid">
+          <div className="use-case-card">
+            <div className="use-case-icon"><Cpu size={28} /></div>
+            <h3>DevOps & SysAdmin</h3>
+            <p>Gestiona múltiples servidores de producción, staging y desarrollo desde un solo panel. Monitorea logs, reinicia servicios y despliega actualizaciones sin necesidad de SSH individual.</p>
+          </div>
+          <div className="use-case-card">
+            <div className="use-case-icon"><Users size={28} /></div>
+            <h3>Equipos Colaborativos</h3>
+            <p>Comparte sesiones de terminal en tiempo real con tu equipo. Ideal para pair programming, debugging colaborativo o capacitación — todos ven la misma terminal simultáneamente.</p>
+          </div>
+          <div className="use-case-card">
+            <div className="use-case-icon"><Network size={28} /></div>
+            <h3>Homelab & IoT</h3>
+            <p>Accede a tu NAS, Raspberry Pi o servidor casero desde cualquier lugar. Sin necesidad de abrir puertos ni configurar VPNs complejas — el worker se conecta automáticamente.</p>
+          </div>
+          <div className="use-case-card">
+            <div className="use-case-icon"><Lock size={28} /></div>
+            <h3>Entornos Seguros</h3>
+            <p>Controla el acceso con permisos granulares: solo lectura, control o administración. Cada worker se autentica con token único. Perfecto para cumplir políticas de seguridad corporativas.</p>
+          </div>
+          <div className="use-case-card">
+            <div className="use-case-icon"><Eye size={28} /></div>
+            <h3>Monitoreo en Vivo</h3>
+            <p>Observa en tiempo real lo que sucede en tus servidores. Conecta una sesión en modo vista para supervisar procesos, builds o deploys sin riesgo de ejecutar comandos accidentales.</p>
+          </div>
+          <div className="use-case-card">
+            <div className="use-case-icon"><Workflow size={28} /></div>
+            <h3>Automatización</h3>
+            <p>Combina TermiCoop con tus flujos CI/CD. Ejecuta scripts de mantenimiento, verifica estados de servicios o realiza tareas programadas desde una interfaz web unificada.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FAQ ─── */}
+      <section className="faq-section">
+        <h2 className="section-title">Preguntas Frecuentes</h2>
+        <p className="section-subtitle">Resolvemos tus dudas más comunes.</p>
+        <div className="faq-grid">
+          <details className="faq-item">
+            <summary><HelpCircle size={18} /> ¿Necesito abrir puertos en mi servidor?</summary>
+            <p>No. El worker se conecta al nexus de forma saliente (outbound), así que no necesitas exponer puertos ni configurar NAT/firewall. Funciona incluso detrás de CGNAT.</p>
+          </details>
+          <details className="faq-item">
+            <summary><HelpCircle size={18} /> ¿Es seguro dejar un worker corriendo?</summary>
+            <p>Sí. Cada worker se autentica con un token único y las sesiones se cifran en tránsito con TLS. Además puedes revocar el acceso en cualquier momento desde tu panel.</p>
+          </details>
+          <details className="faq-item">
+            <summary><HelpCircle size={18} /> ¿Qué sistemas operativos soporta el worker?</summary>
+            <p>El worker está disponible como binario nativo para Linux (Ubuntu, Debian, RHEL, Arch) tanto en x86_64 como ARM. También se puede ejecutar vía Docker en cualquier plataforma.</p>
+          </details>
+          <details className="faq-item">
+            <summary><HelpCircle size={18} /> ¿Puedo compartir un worker con mi equipo?</summary>
+            <p>Sí, con los planes Pro y Enterprise puedes compartir workers con otros usuarios, asignando permisos de solo vista, control o administración completa por cada persona.</p>
+          </details>
+          <details className="faq-item">
+            <summary><HelpCircle size={18} /> ¿Cuántas sesiones simultáneas puedo tener?</summary>
+            <p>Depende de tu plan. El plan gratuito permite 1 sesión activa, Básico permite 3, y Pro/Enterprise ofrecen sesiones ilimitadas. Cada sesión es una terminal independiente.</p>
+          </details>
+          <details className="faq-item">
+            <summary><HelpCircle size={18} /> ¿Puedo auto-hospedar el nexus?</summary>
+            <p>Sí. TermiCoop es open source. Puedes desplegar tu propio nexus en tu infraestructura con Docker Compose o como paquete systemd. La documentación completa está en GitHub.</p>
+          </details>
+        </div>
+      </section>
+
       {/* ─── Pricing ─── */}
       <section className="pricing-section" ref={pricingRef}>
         <h2 className="section-title">Planes y Precios</h2>
@@ -198,6 +323,21 @@ export function LoginPage() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* ─── Final CTA ─── */}
+      <section className="final-cta-section">
+        <div className="cta-glow"></div>
+        <h2>¿Listo para tomar el control?</h2>
+        <p>Crea tu cuenta gratuita y conecta tu primer servidor en menos de 5 minutos.</p>
+        <div className="cta-actions">
+          <button className="btn-hero-primary" onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}>
+            Comenzar Gratis <ArrowRight size={18} />
+          </button>
+          <a href="https://github.com/stevenvo780/TermiCoop" target="_blank" rel="noopener noreferrer" className="btn-hero-secondary">
+            Ver en GitHub <ChevronRight size={18} />
+          </a>
         </div>
       </section>
 
@@ -267,6 +407,11 @@ export function LoginPage() {
         <div className="footer-inner">
           <div className="footer-brand">
             <Hexagon size={20} /> TermiCoop
+          </div>
+          <div className="footer-links">
+            <a href="https://github.com/stevenvo780/TermiCoop" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <button onClick={() => scrollTo(pricingRef)}>Planes</button>
+            <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}>Iniciar Sesión</button>
           </div>
           <p>© {new Date().getFullYear()} TermiCoop. Terminal remoto distribuido.</p>
         </div>
