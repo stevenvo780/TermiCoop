@@ -4,6 +4,9 @@ import { PaymentModel } from '../models/payment.model';
 
 import { setUserPlan, getUserPlan, getLimitsForPlan } from './plan-limits';
 
+/** Subscription period in days */
+const SUBSCRIPTION_PERIOD_DAYS = 30;
+
 // Read env at runtime (after dotenv.config has run)
 function getEnv() {
   return {
@@ -181,9 +184,10 @@ export class PaymentService {
       const existing = await PaymentModel.findByPreferenceId(preferenceId);
       if (existing) {
         await PaymentModel.updateStatus(preferenceId, status, String(mpPayment.id));
-        // Si aprobado, actualizar plan del usuario
+        // Si aprobado, actualizar plan del usuario y activar suscripción
         if (status === 'approved') {
           await setUserPlan(existing.user_id, existing.plan);
+          await this.activateSubscription(existing.id, existing.user_id);
           console.log(`[Payment] Plan actualizado: user=${existing.user_id} plan=${existing.plan}`);
         }
         return { processed: true, status, externalRef };
@@ -196,6 +200,7 @@ export class PaymentService {
       await PaymentModel.updateStatusByMpPaymentId(String(mpPayment.id), status);
       if (status === 'approved') {
         await setUserPlan(byMpId.user_id, byMpId.plan);
+        await this.activateSubscription(byMpId.id, byMpId.user_id);
         console.log(`[Payment] Plan actualizado: user=${byMpId.user_id} plan=${byMpId.plan}`);
       }
       return { processed: true, status, externalRef };
@@ -234,6 +239,7 @@ export class PaymentService {
         await PaymentModel.updateStatus(preferenceId, status, paymentId);
         if (status === 'approved') {
           await setUserPlan(existing.user_id, existing.plan);
+          await this.activateSubscription(existing.id, existing.user_id);
           console.log(`[Payment] Plan actualizado via callback: user=${existing.user_id} plan=${existing.plan}`);
         }
         return { processed: true, status, plan: existing.plan };
@@ -261,18 +267,120 @@ export class PaymentService {
     const payments = await PaymentModel.findByUserId(userId);
     const currentPlan = await getUserPlan(userId);
     const limits = getLimitsForPlan(currentPlan);
+    const activeSub = await PaymentModel.getActiveSubscription(userId);
 
     return {
       currentPlan,
       limits,
+      subscriptionEnd: activeSub?.subscription_end || null,
+      subscriptionStart: activeSub?.subscription_start || null,
       payments: payments.map((p) => ({
         id: p.id,
         plan: p.plan,
         status: p.status,
         amount: p.amount,
         currency: p.currency,
+        subscriptionStart: p.subscription_start,
+        subscriptionEnd: p.subscription_end,
         createdAt: p.created_at,
       })),
     };
+  }
+
+  /**
+   * Set subscription dates for an approved payment.
+   * Extends from the current active subscription end date if one exists (stacking).
+   */
+  static async activateSubscription(paymentId: number, userId: number): Promise<void> {
+    const existingActive = await PaymentModel.getActiveSubscription(userId);
+    const now = new Date();
+
+    let start: Date;
+    if (existingActive && existingActive.subscription_end) {
+      const existingEnd = new Date(existingActive.subscription_end);
+      // If existing sub hasn't expired yet, stack from its end date
+      start = existingEnd > now ? existingEnd : now;
+    } else {
+      start = now;
+    }
+
+    const end = new Date(start.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+
+    await PaymentModel.setSubscriptionDates(
+      paymentId,
+      start.toISOString(),
+      end.toISOString()
+    );
+
+    console.log(`[Payment] Subscription activated: payment=${paymentId} user=${userId} ${start.toISOString()} → ${end.toISOString()}`);
+  }
+
+  /**
+   * Process expired subscriptions: downgrade users to 'free' plan.
+   * Should be called periodically (cron/scheduler).
+   */
+  static async processExpiredSubscriptions(): Promise<{
+    processed: number;
+    downgraded: string[];
+    errors: string[];
+  }> {
+    const expired = await PaymentModel.getExpiredSubscriptions();
+    const downgraded: string[] = [];
+    const errors: string[] = [];
+
+    // Group by user_id to avoid duplicate downgrades
+    const userIds = [...new Set(expired.map(p => p.user_id))];
+
+    for (const userId of userIds) {
+      try {
+        // Check if user has ANY other active (non-expired) subscription
+        const stillActive = await PaymentModel.getActiveSubscription(userId);
+        if (stillActive) {
+          // User has another active subscription, just mark old ones as expired
+          const userExpired = expired.filter(p => p.user_id === userId);
+          for (const p of userExpired) {
+            await PaymentModel.markExpired(p.id);
+          }
+          continue;
+        }
+
+        // No active subscription → downgrade to free
+        const currentPlan = await getUserPlan(userId);
+        if (currentPlan !== 'free') {
+          await setUserPlan(userId, 'free');
+          downgraded.push(`user_${userId} (${currentPlan} → free)`);
+          console.log(`[Billing] Downgraded user ${userId} from ${currentPlan} to free`);
+        }
+
+        // Mark all expired payments
+        const userExpired = expired.filter(p => p.user_id === userId);
+        for (const p of userExpired) {
+          await PaymentModel.markExpired(p.id);
+        }
+      } catch (err: any) {
+        errors.push(`user_${userId}: ${err.message}`);
+        console.error(`[Billing] Error processing user ${userId}:`, err.message);
+      }
+    }
+
+    console.log(`[Billing] Processed ${expired.length} expired subscriptions. Downgraded: ${downgraded.length}. Errors: ${errors.length}`);
+
+    return {
+      processed: expired.length,
+      downgraded,
+      errors,
+    };
+  }
+
+  /**
+   * Get subscriptions expiring within N days (for warnings/notifications).
+   */
+  static async getExpiringSubscriptions(withinDays: number = 5) {
+    const expiring = await PaymentModel.getExpiringSubscriptions(withinDays);
+    return expiring.map(p => ({
+      userId: p.user_id,
+      plan: p.plan,
+      subscriptionEnd: p.subscription_end,
+    }));
   }
 }

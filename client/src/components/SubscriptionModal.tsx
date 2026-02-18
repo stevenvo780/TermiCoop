@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Check, Loader2, X, Crown, Zap, Gift, Sparkles } from 'lucide-react';
+import { CreditCard, Check, Loader2, X, Crown, Zap, Gift, Sparkles, AlertTriangle, Clock } from 'lucide-react';
 
 interface Plan {
   id: string;
@@ -16,6 +16,8 @@ interface PaymentHistory {
   status: string;
   amount: number;
   currency: string;
+  subscriptionStart?: string;
+  subscriptionEnd?: string;
   createdAt: string;
 }
 
@@ -65,6 +67,7 @@ function formatCurrency(amount: number, currency: string): string {
 export function SubscriptionModal({ onClose, nexusUrl, token }: SubscriptionModalProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [activePlan, setActivePlan] = useState<string | null>(null);
+  const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [payments, setPayments] = useState<PaymentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
@@ -93,6 +96,7 @@ export function SubscriptionModal({ onClose, nexusUrl, token }: SubscriptionModa
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setActivePlan(statusData.currentPlan || 'free');
+        setSubscriptionEnd(statusData.subscriptionEnd || null);
         setPayments(statusData.payments || []);
       }
     } catch (err) {
@@ -201,14 +205,48 @@ export function SubscriptionModal({ onClose, nexusUrl, token }: SubscriptionModa
                   padding: '0.75rem 1rem',
                   marginBottom: '1.5rem',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
+                  flexDirection: 'column',
+                  gap: 6,
                 }}
               >
-                <Check size={18} color="#10b981" />
-                <span style={{ color: '#a6e3a1', fontSize: 14 }}>
-                  Plan activo: <strong>{activePlan.charAt(0).toUpperCase() + activePlan.slice(1)}</strong>
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Check size={18} color="#10b981" />
+                  <span style={{ color: '#a6e3a1', fontSize: 14 }}>
+                    Plan activo: <strong>{activePlan.charAt(0).toUpperCase() + activePlan.slice(1)}</strong>
+                  </span>
+                </div>
+                {subscriptionEnd && activePlan !== 'free' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 26 }}>
+                    {(() => {
+                      const endDate = new Date(subscriptionEnd);
+                      const now = new Date();
+                      const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                      const isExpiring = daysLeft <= 5;
+                      const isExpired = daysLeft <= 0;
+
+                      if (isExpired) {
+                        return (
+                          <>
+                            <AlertTriangle size={14} color="#ef4444" />
+                            <span style={{ color: '#fca5a5', fontSize: 13 }}>
+                              Tu suscripción expiró. Renueva para mantener tus beneficios.
+                            </span>
+                          </>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <Clock size={14} color={isExpiring ? '#f59e0b' : '#6c7086'} />
+                          <span style={{ color: isExpiring ? '#fcd34d' : '#a6adc8', fontSize: 13 }}>
+                            {isExpiring ? '⚠️ ' : ''}Vence el {endDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            {isExpiring ? ` (${daysLeft} día${daysLeft === 1 ? '' : 's'})` : ''}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
 
@@ -357,6 +395,7 @@ export function SubscriptionModal({ onClose, nexusUrl, token }: SubscriptionModa
                         <th style={{ padding: '8px 12px', textAlign: 'left', color: '#6c7086', fontWeight: 500 }}>Plan</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left', color: '#6c7086', fontWeight: 500 }}>Monto</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left', color: '#6c7086', fontWeight: 500 }}>Estado</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#6c7086', fontWeight: 500 }}>Vence</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left', color: '#6c7086', fontWeight: 500 }}>Fecha</th>
                       </tr>
                     </thead>
@@ -384,6 +423,11 @@ export function SubscriptionModal({ onClose, nexusUrl, token }: SubscriptionModa
                               >
                                 {st.label}
                               </span>
+                            </td>
+                            <td style={{ padding: '8px 12px', color: '#6c7086', fontSize: 12 }}>
+                              {p.subscriptionEnd
+                                ? new Date(p.subscriptionEnd).toLocaleDateString('es-CO')
+                                : '—'}
                             </td>
                             <td style={{ padding: '8px 12px', color: '#6c7086' }}>
                               {new Date(p.createdAt).toLocaleDateString('es-CO')}

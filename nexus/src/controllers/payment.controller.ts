@@ -99,4 +99,37 @@ export class PaymentController {
       res.status(500).json({ error: err.message });
     }
   }
+
+  /**
+   * Billing cron endpoint — processes expired subscriptions.
+   * Protected by BILLING_CRON_SECRET header.
+   * Can be called by external schedulers (GCP Cloud Scheduler, Vercel Cron, crontab curl).
+   */
+  static async billingCron(req: Request, res: Response) {
+    try {
+      const secret = process.env.BILLING_CRON_SECRET || 'billing-cron-secret-default';
+      const provided = req.headers['x-cron-secret'] || req.query.secret;
+
+      if (provided !== secret) {
+        res.status(403).json({ error: 'Forbidden: invalid cron secret' });
+        return;
+      }
+
+      console.log('[Billing] Cron triggered at', new Date().toISOString());
+      const result = await PaymentService.processExpiredSubscriptions();
+
+      // Also get upcoming expirations for logging
+      const expiring = await PaymentService.getExpiringSubscriptions(5);
+
+      res.json({
+        ok: true,
+        timestamp: new Date().toISOString(),
+        ...result,
+        expiringSoon: expiring,
+      });
+    } catch (err: any) {
+      console.error('[Billing] Cron error:', err.message);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  }
 }

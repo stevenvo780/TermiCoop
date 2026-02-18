@@ -116,11 +116,23 @@ export const initDatabase = async () => {
       plan TEXT NOT NULL,
       amount REAL NOT NULL,
       currency TEXT NOT NULL DEFAULT 'COP',
+      subscription_start TEXT,
+      subscription_end TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE${isPg ? ', PRIMARY KEY (id)' : ''}
     );
   `);
+
+  // Migration: add subscription columns if missing (existing DBs)
+  try {
+    await db.exec(`ALTER TABLE payments ADD COLUMN subscription_start TEXT`);
+    console.log('[Nexus] Added subscription_start column to payments table');
+  } catch (_e) { /* already exists */ }
+  try {
+    await db.exec(`ALTER TABLE payments ADD COLUMN subscription_end TEXT`);
+    console.log('[Nexus] Added subscription_end column to payments table');
+  } catch (_e) { /* already exists */ }
 };
 
 export default db;

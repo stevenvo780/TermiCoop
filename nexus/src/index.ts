@@ -8,8 +8,10 @@ import { initSocket } from './socket';
 import { initDatabase } from './config/database';
 import { UserModel } from './models/user.model';
 import { WorkerModel } from './models/worker.model';
+import { PaymentService } from './services/payment.service';
 
 const PORT = process.env.PORT || 3002;
+const BILLING_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const startServer = async () => {
     console.log('[Nexus] Initializing database...');
@@ -46,6 +48,31 @@ const startServer = async () => {
     httpServer.listen(PORT, () => {
         console.log(`[Nexus] Server running on port ${PORT}`);
     });
+
+    // --- Internal billing scheduler ---
+    // Run once on startup (after a short delay to let DB settle)
+    setTimeout(async () => {
+        try {
+            console.log('[Billing] Running startup billing check...');
+            const result = await PaymentService.processExpiredSubscriptions();
+            console.log('[Billing] Startup result:', JSON.stringify(result));
+        } catch (err: any) {
+            console.error('[Billing] Startup check error:', err.message);
+        }
+    }, 10_000); // 10 seconds after boot
+
+    // Run every 24 hours
+    setInterval(async () => {
+        try {
+            console.log('[Billing] Running scheduled billing check...');
+            const result = await PaymentService.processExpiredSubscriptions();
+            console.log('[Billing] Scheduled result:', JSON.stringify(result));
+        } catch (err: any) {
+            console.error('[Billing] Scheduled check error:', err.message);
+        }
+    }, BILLING_INTERVAL_MS);
+
+    console.log(`[Billing] Internal scheduler active (every ${BILLING_INTERVAL_MS / 3600000}h)`);
 };
 
 startServer().catch(err => {

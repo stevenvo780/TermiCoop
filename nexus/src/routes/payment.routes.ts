@@ -20,4 +20,7 @@ router.get('/callback', PaymentController.callback);
 // Estado de suscripción del usuario (requiere auth)
 router.get('/status', authMiddleware, PaymentController.getStatus);
 
+// Billing cron — procesa suscripciones expiradas (protegido por secret)
+router.post('/billing-cron', PaymentController.billingCron);
+
 export default router;

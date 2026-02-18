@@ -10,6 +10,8 @@ export interface Payment {
   plan: string;
   amount: number;
   currency: string;
+  subscription_start: string | null;
+  subscription_end: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +31,8 @@ export class PaymentModel {
         plan TEXT NOT NULL,
         amount REAL NOT NULL,
         currency TEXT NOT NULL DEFAULT 'COP',
+        subscription_start TEXT,
+        subscription_end TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE${isPg ? ', PRIMARY KEY (id)' : ''}
@@ -58,6 +62,8 @@ export class PaymentModel {
       plan,
       amount,
       currency,
+      subscription_start: null,
+      subscription_end: null,
       created_at: now,
       updated_at: now,
     };
@@ -80,9 +86,63 @@ export class PaymentModel {
   }
 
   static async getActiveSubscription(userId: number): Promise<Payment | undefined> {
+    const now = new Date().toISOString();
     return db.get<Payment>(
-      "SELECT * FROM payments WHERE user_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT 1",
-      [userId]
+      `SELECT * FROM payments
+       WHERE user_id = ? AND status = 'approved'
+         AND subscription_end IS NOT NULL AND subscription_end > ?
+       ORDER BY subscription_end DESC LIMIT 1`,
+      [userId, now]
+    );
+  }
+
+  /** Find all subscriptions that have expired (subscription_end <= now) and are still 'approved' */
+  static async getExpiredSubscriptions(): Promise<Payment[]> {
+    const now = new Date().toISOString();
+    const result = await db.query<Payment>(
+      `SELECT * FROM payments
+       WHERE status = 'approved'
+         AND subscription_end IS NOT NULL
+         AND subscription_end <= ?`,
+      [now]
+    );
+    return result.rows;
+  }
+
+  /** Find subscriptions expiring within the next N days */
+  static async getExpiringSubscriptions(withinDays: number): Promise<Payment[]> {
+    const now = new Date();
+    const future = new Date(now.getTime() + withinDays * 24 * 60 * 60 * 1000).toISOString();
+    const result = await db.query<Payment>(
+      `SELECT * FROM payments
+       WHERE status = 'approved'
+         AND subscription_end IS NOT NULL
+         AND subscription_end > ?
+         AND subscription_end <= ?`,
+      [now.toISOString(), future]
+    );
+    return result.rows;
+  }
+
+  /** Set subscription dates when payment is approved */
+  static async setSubscriptionDates(
+    paymentId: number,
+    start: string,
+    end: string
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await db.run(
+      'UPDATE payments SET subscription_start = ?, subscription_end = ?, updated_at = ? WHERE id = ?',
+      [start, end, now, paymentId]
+    );
+  }
+
+  /** Mark expired payment as expired */
+  static async markExpired(paymentId: number): Promise<void> {
+    const now = new Date().toISOString();
+    await db.run(
+      "UPDATE payments SET status = 'expired', updated_at = ? WHERE id = ?",
+      [now, paymentId]
     );
   }
 
