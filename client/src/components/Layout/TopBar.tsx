@@ -4,6 +4,7 @@ import {
   logoutAndReset,
   assignGridSlot,
   setShowChangePasswordModal,
+  setShowSubscriptionModal,
   setShowSettings,
   setShowUserMenu,
   setActiveSession,
@@ -14,6 +15,7 @@ import {
 } from '../../store';
 import {
   Download,
+  CreditCard,
   KeyRound,
   LogOut,
   Maximize2,
@@ -290,6 +292,13 @@ export function TopBar({
                 >
                   <KeyRound className="menu-icon" />
                   <span>Cambiar Contraseña</span>
+                </button>
+                <button
+                  className="user-menu-item"
+                  onClick={() => { dispatch(setShowSubscriptionModal(true)); dispatch(setShowUserMenu(false)); }}
+                >
+                  <CreditCard className="menu-icon" />
+                  <span>Suscripción</span>
                 </button>
                 <button className="user-menu-item logout" onClick={handleLogout}>
                   <LogOut className="menu-icon" />

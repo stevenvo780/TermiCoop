@@ -4,6 +4,7 @@ import path from 'path';
 import fs, { existsSync } from 'fs';
 import authRoutes from './routes/auth.routes';
 import workerRoutes from './routes/worker.routes';
+import paymentRoutes from './routes/payment.routes';
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/workers', workerRoutes);
+app.use('/api/payments', paymentRoutes);
 
 const downloadRoots = [
   path.resolve(process.cwd(), 'dist/packages'),
@@ -242,6 +244,24 @@ app.get('/api/downloads/latest/worker-linux.:ext', (req, res) => {
   res.download(file.path, filename);
 });
 
-
+// Serve client static files in production
+const clientPaths = [
+  path.resolve(process.cwd(), 'client/dist'),
+  path.resolve(process.cwd(), '../client/dist'),
+  path.resolve(process.cwd(), 'public'),
+  '/usr/share/ultimate-terminal/public',
+  path.resolve(__dirname, '../public'),
+];
+const clientDistPath = clientPaths.find(p => existsSync(p));
+if (clientDistPath) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+  console.log(`Serving client from ${clientDistPath}`);
+}
 
 export default app;

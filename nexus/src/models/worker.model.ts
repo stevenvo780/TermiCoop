@@ -110,7 +110,7 @@ export class WorkerModel {
     if (!share) return false;
 
     // Single share mode: treat view/control as the same permission level.
-    const levels = { 'view': 2, 'control': 2, 'admin': 3 };
+    const levels = { 'view': 1, 'control': 2, 'admin': 3 };
     return levels[share.permission as keyof typeof levels] >= levels[requiredPermission];
   }
 

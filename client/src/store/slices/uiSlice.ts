@@ -25,6 +25,7 @@ interface UIState {
   showInstallModal: boolean;
   showWorkerModal: boolean;
   showChangePasswordModal: boolean;
+  showSubscriptionModal: boolean;
   showUserMenu: boolean;
   dialog: DialogState | null;
   dialogLoading: boolean;
@@ -43,6 +44,7 @@ const initialState: UIState = {
   showInstallModal: false,
   showWorkerModal: false,
   showChangePasswordModal: false,
+  showSubscriptionModal: false,
   showUserMenu: false,
   dialog: null,
   dialogLoading: false,
@@ -80,6 +82,9 @@ const uiSlice = createSlice({
     },
     setShowChangePasswordModal: (state, action: PayloadAction<boolean>) => {
       state.showChangePasswordModal = action.payload;
+    },
+    setShowSubscriptionModal: (state, action: PayloadAction<boolean>) => {
+      state.showSubscriptionModal = action.payload;
     },
     setShowUserMenu: (state, action: PayloadAction<boolean>) => {
       state.showUserMenu = action.payload;
@@ -122,6 +127,7 @@ export const {
   setShowInstallModal,
   setShowWorkerModal,
   setShowChangePasswordModal,
+  setShowSubscriptionModal,
   setShowUserMenu,
   openDialog,
   closeDialog,

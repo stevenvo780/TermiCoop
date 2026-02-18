@@ -10,6 +10,16 @@ export interface StoredSession {
   lastActiveAt: number;
 }
 
+export interface ServerSession {
+  id: string;
+  workerId: string;
+  workerName: string;
+  workerKey: string;
+  displayName: string;
+  createdAt: number;
+  lastActiveAt: number;
+}
+
 const SESSION_STORE_KEY = 'ut-sessions-v1';
 const SESSION_OUTPUT_KEY = 'ut-session-output-v1';
 const ACTIVE_SESSION_KEY = 'ut-active-session';
@@ -38,6 +48,7 @@ interface SessionsState {
   isRestored: boolean;
   draggingSessionId: string | null;
   layoutMode: LayoutMode;
+  serverSessions: ServerSession[];
 }
 
 const initialState: SessionsState = {
@@ -50,6 +61,7 @@ const initialState: SessionsState = {
   isRestored: false,
   draggingSessionId: null,
   layoutMode: (localStorage.getItem(LAYOUT_MODE_KEY) as LayoutMode) || 'single',
+  serverSessions: [],
 };
 
 const emptyState: SessionsState = {
@@ -62,6 +74,7 @@ const emptyState: SessionsState = {
   isRestored: false,
   draggingSessionId: null,
   layoutMode: 'single',
+  serverSessions: [],
 };
 
 const sessionsSlice = createSlice({
@@ -174,6 +187,9 @@ const sessionsSlice = createSlice({
       state.layoutMode = action.payload;
       localStorage.setItem(LAYOUT_MODE_KEY, action.payload);
     },
+    setServerSessions: (state, action: PayloadAction<ServerSession[]>) => {
+      state.serverSessions = action.payload;
+    },
   },
 });
 
@@ -194,6 +210,7 @@ export const {
   resetSessionsState,
   setSessions,
   setLayoutMode,
+  setServerSessions,
 } = sessionsSlice.actions;
 
 export default sessionsSlice.reducer;

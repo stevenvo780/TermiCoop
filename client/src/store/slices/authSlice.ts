@@ -1,9 +1,20 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+interface PlanLimits {
+  maxWorkers: number;
+  maxSessions: number;
+  canShare: boolean;
+  canSaveSnippets: boolean;
+  canTagWorkers: boolean;
+  canUseApi: boolean;
+}
+
 interface User {
   userId: number;
   username: string;
   isAdmin: boolean;
+  plan?: string;
+  limits?: PlanLimits;
 }
 
 interface AuthState {

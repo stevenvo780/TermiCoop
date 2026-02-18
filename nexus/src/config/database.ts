@@ -39,9 +39,18 @@ export const initDatabase = async () => {
       password_hash TEXT NOT NULL,
       salt TEXT NOT NULL,
       is_admin INTEGER DEFAULT 0,
+      plan TEXT NOT NULL DEFAULT 'free',
       created_at TEXT NOT NULL${isPg ? ', PRIMARY KEY (id)' : ''}
     );
   `);
+
+  // Migration: add plan column if missing (existing DBs)
+  try {
+    await db.exec(`ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'`);
+    console.log('[Nexus] Added plan column to users table');
+  } catch (_e) {
+    // Column already exists — ignore
+  }
 
   // Workers
   await db.exec(`
@@ -93,6 +102,23 @@ export const initDatabase = async () => {
       data TEXT NOT NULL,
       user_id INTEGER,
       worker_id TEXT${isPg ? ', PRIMARY KEY (id)' : ''}
+    );
+  `);
+
+  // Payments (Mercado Pago)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id ${AUTO_INC},
+      user_id INTEGER NOT NULL,
+      preference_id TEXT NOT NULL,
+      mp_payment_id TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      plan TEXT NOT NULL,
+      amount REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'COP',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE${isPg ? ', PRIMARY KEY (id)' : ''}
     );
   `);
 };

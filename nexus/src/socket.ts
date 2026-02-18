@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { verifyToken, JwtPayload } from './utils/jwt';
 import { WorkerModel, Worker } from './models/worker.model';
 import { UserModel } from './models/user.model';
+import { getUserPlan, canOpenSession } from './services/plan-limits';
 import db from './config/database';
 
 /**
@@ -137,6 +138,7 @@ export const initSocket = (httpServer: any) => {
 
       const filtered: Array<{
         id: string;
+        workerId: string;
         workerName: string;
         workerKey: string;
         displayName: string;
@@ -149,6 +151,7 @@ export const initSocket = (httpServer: any) => {
         sessions.forEach((s) => {
           filtered.push({
             id: s.id,
+            workerId,
             workerName: s.workerName,
             workerKey: s.workerKey,
             displayName: s.displayName,
@@ -327,6 +330,30 @@ export const initSocket = (httpServer: any) => {
         return;
       }
 
+      // Verificar límite de sesiones por plan
+      const key = sessionKey(msg.workerId, sessionId);
+      if (!activeSessions.has(key)) {
+        // Es una sesión nueva — contar las del usuario
+        const userPlan = await getUserPlan(data.user.userId);
+        let userSessionCount = 0;
+        for (const [, sess] of activeSessions) {
+          const subs = sessionSubscribers.get(sess.id);
+          if (subs && subs.has(socket.id)) {
+            userSessionCount++;
+          }
+        }
+        const sessionCheck = canOpenSession(userPlan, userSessionCount);
+        if (!sessionCheck.allowed) {
+          socket.emit('plan-limit', {
+            code: 'PLAN_LIMIT_SESSIONS',
+            message: sessionCheck.reason,
+            current: sessionCheck.current,
+            max: sessionCheck.max,
+          });
+          return;
+        }
+      }
+
       const worker = workers.get(msg.workerId);
       if (!worker) {
         socket.emit('error', 'Worker is offline');
@@ -408,6 +435,32 @@ export const initSocket = (httpServer: any) => {
         socket.join(`worker:${msg.workerId}`);
       } else {
         socket.emit('error', 'Access denied');
+      }
+    });
+
+    socket.on('create-session', async (msg: { id: string; workerName?: string; workerKey?: string; displayName?: string }) => {
+      if (data.role !== 'client' || !data.user) return;
+      const sessionId = normalizeSessionId(msg.id);
+
+      // Find workerId by workerName/workerKey
+      let workerId: string | undefined;
+      if (msg.workerKey || msg.workerName) {
+        const key = (msg.workerKey || msg.workerName || '').toLowerCase();
+        for (const [wId, w] of workers.entries()) {
+          if (w.name.toLowerCase() === key) {
+            workerId = wId;
+            break;
+          }
+        }
+      }
+
+      if (workerId) {
+        const hasAccess = await WorkerModel.hasAccess(data.user.userId, workerId, 'control');
+        if (!hasAccess) return;
+
+        await ensureActiveSession(workerId, sessionId, msg.displayName);
+        addSessionSubscriber(sessionId, socket.id);
+        scheduleSessionListBroadcast(true);
       }
     });
 

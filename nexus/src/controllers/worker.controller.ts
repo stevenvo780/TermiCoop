@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { WorkerModel } from '../models/worker.model';
 import { UserModel } from '../models/user.model';
 import { workers as connectedWorkers } from '../socket';
+import { canCreateWorker, canShareWorker } from '../services/plan-limits';
 import type { Server } from 'socket.io';
 
 export class WorkerController {
@@ -36,6 +37,18 @@ export class WorkerController {
     const { name } = req.body;
     if (!name) { res.status(400).json({ error: 'Name required' }); return; }
 
+    // Verificar límite de workers por plan
+    const check = await canCreateWorker(req.user.userId);
+    if (!check.allowed) {
+      res.status(403).json({
+        error: check.reason,
+        code: 'PLAN_LIMIT_WORKERS',
+        current: check.current,
+        max: check.max,
+      });
+      return;
+    }
+
     const worker = await WorkerModel.create(req.user.userId, name);
     res.json(worker);
   }
@@ -45,6 +58,16 @@ export class WorkerController {
     const { workerId, targetUsername } = req.body;
 
     if (!targetUsername) { res.status(400).json({ error: 'Username required' }); return; }
+
+    // Verificar que el plan permite compartir
+    const shareCheck = await canShareWorker(req.user.userId);
+    if (!shareCheck.allowed) {
+      res.status(403).json({
+        error: shareCheck.reason,
+        code: 'PLAN_LIMIT_SHARE',
+      });
+      return;
+    }
 
     const worker = await WorkerModel.findById(workerId);
     if (!worker) { res.status(404).json({ error: 'Worker not found' }); return; }

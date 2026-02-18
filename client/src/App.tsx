@@ -22,12 +22,14 @@ import {
   setOfflineSessionIds,
   updateSessionOutput,
   setSessionOutput,
+  setServerSessions,
   openDialog,
   closeDialog,
   setShowChangePasswordModal,
+  setShowSubscriptionModal,
 } from './store';
 import type { Worker } from './store/slices/workersSlice';
-import type { StoredSession } from './store/slices/sessionsSlice';
+import type { StoredSession, ServerSession } from './store/slices/sessionsSlice';
 
 import { TopBar } from './components/Layout/TopBar';
 import { Sidebar } from './components/Layout/Sidebar/Sidebar';
@@ -38,6 +40,8 @@ import { RenameSessionModal } from './components/RenameSessionModal';
 import { ShareModal } from './components/ShareModal';
 import { InstallWorkerModal } from './components/InstallWorkerModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { SubscriptionModal } from './components/SubscriptionModal';
+import { PaymentReturn } from './components/PaymentReturn';
 import { Toast } from './components/Layout/Toast';
 import { JoinWorkerModal } from './components/JoinWorkerModal';
 
@@ -79,15 +83,18 @@ function AppContent() {
   const sessionOutput = useAppSelector((state) => state.sessions.sessionOutput);
   const workers = useAppSelector((state) => state.workers.workers);
   const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
+  const serverSessions = useAppSelector((state) => state.sessions.serverSessions);
   const connectionState = useAppSelector((state) => state.connection.connectionState);
   const renamingSessionId = useAppSelector((state) => state.ui.renamingSessionId);
   const shareModalWorker = useAppSelector((state) => state.ui.shareModalWorker);
   const showWorkerModal = useAppSelector((state) => state.ui.showWorkerModal);
   const editingWorker = useAppSelector((state) => state.ui.editingWorker);
   const showChangePasswordModal = useAppSelector((state) => state.ui.showChangePasswordModal);
+  const showSubscriptionModal = useAppSelector((state) => state.ui.showSubscriptionModal);
 
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [paymentReturnStatus, setPaymentReturnStatus] = useState<'success' | 'failure' | 'pending' | null>(null);
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [instancesVersion, setInstancesVersion] = useState(0);
@@ -357,13 +364,30 @@ function AppContent() {
     if (!worker) return;
 
     const workerKey = normalizeWorkerKey(worker.name);
+    // Check if we already have a local session for this worker
     const existing = sessions.find((s) => s.workerKey === workerKey);
     if (existing) {
       dispatch(setActiveSession(existing.id));
-    } else {
-      createNewSession(worker);
+      return;
     }
-  }, [workers, sessions, dispatch, normalizeWorkerKey, createNewSession]);
+
+    // Check if there's an active session from another user on this shared worker
+    const remoteSession = serverSessions.find(
+      (s) => s.workerId === workerId || s.workerKey === workerKey || s.workerName === worker.name
+    );
+    if (remoteSession) {
+      // Join the existing session instead of creating a new one (collaborative view)
+      createNewSession(worker, {
+        sessionId: remoteSession.id,
+        displayName: remoteSession.displayName,
+        createdAt: remoteSession.createdAt,
+        lastActiveAt: remoteSession.lastActiveAt,
+      });
+      return;
+    }
+
+    createNewSession(worker);
+  }, [workers, sessions, serverSessions, dispatch, normalizeWorkerKey, createNewSession]);
 
   // Create new session on worker
   const handleNewSession = useCallback((workerId: string) => {
@@ -513,6 +537,10 @@ function AppContent() {
         socket.on('disconnect', () => dispatch(setConnectionState('disconnected')));
         socket.on('workers', (list: Worker[]) => dispatch(setWorkers(list)));
 
+        socket.on('session-list', (serverSessions: ServerSession[]) => {
+          dispatch(setServerSessions(serverSessions || []));
+        });
+
         socket.on('output', (data: { workerId: string; sessionId?: string; data: string }) => {
           if (data.sessionId) {
             const instance = terminalInstancesRef.current.get(data.sessionId);
@@ -549,8 +577,15 @@ function AppContent() {
 
         socket.on('worker-shared', (data: { workerId: string; name: string; owner: string }) => {
           setNotification({
-            title: 'New Worker Shared',
-            message: `${data.owner} shared "${data.name}" with you. It has been added to your list.`
+            title: 'Worker compartido',
+            message: `${data.owner} compartió "${data.name}" contigo. Se ha añadido a tu lista.`
+          });
+        });
+
+        socket.on('plan-limit', (data: { code: string; message: string; current: number; max: number }) => {
+          setNotification({
+            title: 'Límite de plan',
+            message: data.message,
           });
         });
       })
@@ -632,6 +667,21 @@ function AppContent() {
     };
     window.addEventListener('beforeinstallprompt', handler as EventListener);
     return () => window.removeEventListener('beforeinstallprompt', handler as EventListener);
+  }, []);
+
+  // Payment return URL detection
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/payment/success') {
+      setPaymentReturnStatus('success');
+      window.history.replaceState({}, '', '/');
+    } else if (path === '/payment/failure') {
+      setPaymentReturnStatus('failure');
+      window.history.replaceState({}, '', '/');
+    } else if (path === '/payment/pending') {
+      setPaymentReturnStatus('pending');
+      window.history.replaceState({}, '', '/');
+    }
   }, []);
 
   // Fullscreen change
@@ -742,6 +792,21 @@ function AppContent() {
           onSuccess={() => { }}
           nexusUrl={NEXUS_URL}
           token={token}
+        />
+      )}
+
+      {showSubscriptionModal && token && (
+        <SubscriptionModal
+          onClose={() => dispatch(setShowSubscriptionModal(false))}
+          nexusUrl={NEXUS_URL}
+          token={token}
+        />
+      )}
+
+      {paymentReturnStatus && (
+        <PaymentReturn
+          status={paymentReturnStatus}
+          onBack={() => setPaymentReturnStatus(null)}
         />
       )}
 

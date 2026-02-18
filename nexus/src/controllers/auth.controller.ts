@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { UserModel } from '../models/user.model';
+import { getUserPlan, getLimitsForPlan } from '../services/plan-limits';
 
 export class AuthController {
   static async login(req: Request, res: Response) {
@@ -42,7 +43,10 @@ export class AuthController {
   }
 
   static async getMe(req: Request, res: Response) {
-    res.json({ user: req.user });
+    if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const plan = await getUserPlan(req.user.userId);
+    const limits = getLimitsForPlan(plan);
+    res.json({ user: { ...req.user, plan, limits } });
   }
 
   static async setup(req: Request, res: Response) {
