@@ -113,19 +113,22 @@ export class PaymentService {
     const backUrl = NEXUS_PUBLIC_URL;
     const isHttps = backUrl.startsWith('https://');
 
+    // Solo enviar payer.email si parece un email válido
+    const isValidEmail = userEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
+
     const response = await preferenceClient.create({
       body: {
         items: [
           {
             id: plan.id,
-            title: `Ultimate Terminal - Plan ${plan.name}`,
+            title: `TermiCoop - Plan ${plan.name}`,
             description: plan.description,
             quantity: 1,
             unit_price: plan.price,
             currency_id: plan.currency,
           },
         ],
-        payer: userEmail ? { email: userEmail } : undefined,
+        payer: isValidEmail ? { email: userEmail } : undefined,
         ...(isHttps ? {
           back_urls: {
             success: `${backUrl}/api/payments/callback`,
@@ -136,7 +139,7 @@ export class PaymentService {
         } : {}),
         notification_url: isHttps ? `${NEXUS_PUBLIC_URL}/api/payments/webhook` : undefined,
         external_reference: `user_${userId}_plan_${planId}_${Date.now()}`,
-        statement_descriptor: 'Ultimate Terminal',
+        statement_descriptor: 'TermiCoop',
       },
     });
 
