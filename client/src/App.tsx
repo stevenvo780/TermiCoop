@@ -27,6 +27,7 @@ import {
   closeDialog,
   setShowChangePasswordModal,
   setShowSubscriptionModal,
+  toggleMobileSidebar,
 } from './store';
 import type { Worker } from './store/slices/workersSlice';
 import type { StoredSession, ServerSession } from './store/slices/sessionsSlice';
@@ -34,6 +35,7 @@ import type { StoredSession, ServerSession } from './store/slices/sessionsSlice'
 import { TopBar } from './components/Layout/TopBar';
 import { Sidebar } from './components/Layout/Sidebar/Sidebar';
 import { TerminalGrid } from './components/Terminal/TerminalGrid';
+import { MobileKeyBar } from './components/Terminal/MobileKeyBar';
 import { LoginPage } from './components/Auth/LoginPage';
 import { DialogModal } from './components/Dialogs/DialogModal';
 import { RenameSessionModal } from './components/RenameSessionModal';
@@ -82,7 +84,6 @@ function AppContent() {
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
   const sessionOutput = useAppSelector((state) => state.sessions.sessionOutput);
   const workers = useAppSelector((state) => state.workers.workers);
-  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const serverSessions = useAppSelector((state) => state.sessions.serverSessions);
   const connectionState = useAppSelector((state) => state.connection.connectionState);
   const renamingSessionId = useAppSelector((state) => state.ui.renamingSessionId);
@@ -98,6 +99,7 @@ function AppContent() {
 
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [instancesVersion, setInstancesVersion] = useState(0);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1100);
 
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -117,6 +119,25 @@ function AppContent() {
   const bumpInstancesVersion = useCallback(() => {
     setInstancesVersion((value) => value + 1);
   }, []);
+
+  // Track mobile state
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 1100);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Mobile key bar: send key to active terminal session via socket
+  const handleMobileKey = useCallback((data: string) => {
+    if (!activeSessionId || !socketRef.current) return;
+    const session = sessions.find((s) => s.id === activeSessionId);
+    if (!session) return;
+    socketRef.current.emit('execute', {
+      workerId: session.workerId,
+      sessionId: session.id,
+      command: data,
+    });
+  }, [activeSessionId, sessions]);
 
   useEffect(() => {
     sessionOutputRef.current = sessionOutput;
@@ -565,11 +586,19 @@ function AppContent() {
 
         socket.on('connect_error', (err) => {
           const message = err?.message || 'Connection error';
-          const isAuthIssue = ['invalid token', 'jwt expired', 'unauthorized'].some(
+          const isAuthIssue = [
+            'invalid token',
+            'missing token',
+            'jwt expired',
+            'invalid signature',
+            'jwt malformed',
+            'unauthorized',
+            'authentication error',
+          ].some(
             (needle) => message.toLowerCase().includes(needle)
           );
           if (isAuthIssue) {
-            dispatch(logoutAndReset('Sesión expirada. Inicia sesión de nuevo.'));
+            dispatch(logoutAndReset('Sesión expirada o inválida. Inicia sesión de nuevo.'));
           } else {
             dispatch(setConnectionState('reconnecting'));
           }
@@ -773,11 +802,9 @@ function AppContent() {
   }, [serverSessions, sessions, workers, connectionState, createNewSession, dispatch, normalizeWorkerKey, bumpInstancesVersion]);
 
   // Terminal visibility is now handled by TerminalGrid's reparenting logic
-  // We only need to trigger fits occasionally if layout changes drastically
   useEffect(() => {
-    // Optional: Global fit check
     terminalInstancesRef.current.forEach(i => i.fitAddon.fit());
-  }, [layoutMode]);
+  }, [sessions.length, activeSessionId]);
 
   if (!token) {
     return <LoginPage />;
@@ -823,6 +850,19 @@ function AppContent() {
           containerRef={terminalContainerRef}
           instancesVersion={instancesVersion}
         />
+
+        {/* Mobile FAB to open workers drawer */}
+        <button
+          className="mobile-sidebar-fab"
+          onClick={() => dispatch(toggleMobileSidebar())}
+          title="Workers"
+          type="button"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+          {workers.filter(w => w.status === 'online').length > 0 && (
+            <span className="fab-badge">{workers.filter(w => w.status === 'online').length}</span>
+          )}
+        </button>
       </div>
 
       {renamingSessionId && (
@@ -886,6 +926,12 @@ function AppContent() {
           onClose={() => setNotification(null)}
         />
       )}
+
+      {/* Mobile special keys bar */}
+      <MobileKeyBar
+        onKey={handleMobileKey}
+        visible={isMobile && !!activeSessionId && sessions.length > 0}
+      />
 
     </div>
   );

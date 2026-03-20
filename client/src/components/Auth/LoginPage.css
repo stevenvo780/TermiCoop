@@ -789,6 +789,24 @@
   min-height: auto;
 }
 
+.login-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(2, 6, 12, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-section.login-modal {
+  padding: 0;
+  width: min(100%, 460px);
+}
+
 .login-container {
   width: 420px;
   max-width: 100%;
@@ -807,6 +825,29 @@
 .login-header {
   text-align: center;
   margin-bottom: 36px;
+  position: relative;
+}
+
+.login-close-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 17, 23, 0.8);
+  color: #9fb3c8;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.login-close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
 }
 
 .login-logo {
@@ -1113,10 +1154,13 @@
 
   /* Login */
   .login-section { padding: 40px 16px; }
+  .login-section.login-modal { padding: 0; width: 100%; }
+  .login-modal-backdrop { padding: 12px; align-items: flex-end; }
   .login-container { padding: 24px; width: 100%; }
   .login-actions { flex-direction: column; gap: 8px; }
   .btn-primary, .btn-secondary { width: 100%; }
   .login-logo h1 { font-size: 1.3rem; }
+  .login-close-btn { top: -4px; right: -4px; }
 
   /* Footer */
   .footer-inner { flex-direction: column; gap: 12px; text-align: center; }

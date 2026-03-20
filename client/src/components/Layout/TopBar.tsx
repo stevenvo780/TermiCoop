@@ -1,14 +1,16 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   logoutAndReset,
   assignGridSlot,
+  moveSession,
   setShowChangePasswordModal,
   setShowSubscriptionModal,
   setShowSettings,
   setShowUserMenu,
+  setShowMobileSidebar,
   setActiveSession,
-  setLayoutMode,
   setRenamingSessionId,
   setShowWorkerModal,
   setEditingWorker,
@@ -19,6 +21,7 @@ import {
   KeyRound,
   LogOut,
   Maximize2,
+  Menu,
   Minimize2,
   MoreHorizontal,
   Play,
@@ -52,36 +55,66 @@ export function TopBar({
   const workers = useAppSelector((state) => state.workers.workers);
   const sessions = useAppSelector((state) => state.sessions.sessions);
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
+  const draggingSessionId = useAppSelector((state) => state.sessions.draggingSessionId);
   const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
-  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const connectionState = useAppSelector((state) => state.connection.connectionState);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const token = useAppSelector((state) => state.auth.token);
   const showUserMenu = useAppSelector((state) => state.ui.showUserMenu);
   const isFullscreen = useAppSelector((state) => state.ui.isFullscreen);
   const showSettingsMenu = useAppSelector((state) => state.ui.showSettings);
+  const showMobileSidebar = useAppSelector((state) => state.ui.showMobileSidebar);
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [sessionMenuPosition, setSessionMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const sessionMenuAnchorRef = useRef<HTMLButtonElement | null>(null);
   const sessionsStripRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1100);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [tabDropTarget, setTabDropTarget] = useState<{ sessionId: string; position: 'before' | 'after' } | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 1100);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!showMobileSidebar) return;
+    setShowMobileMenu(false);
+    setSessionMenuId(null);
+    dispatch(setShowSettings(false));
+    dispatch(setShowUserMenu(false));
+  }, [dispatch, showMobileSidebar]);
+
+  const closeTransientMenus = useCallback(() => {
+    setShowMobileMenu(false);
+    setSessionMenuId(null);
+    dispatch(setShowSettings(false));
+    dispatch(setShowUserMenu(false));
+  }, [dispatch]);
 
   const handleToggleUserMenu = () => {
+    dispatch(setShowMobileSidebar(false));
+    setShowMobileMenu(false);
+    setSessionMenuId(null);
     dispatch(setShowUserMenu(!showUserMenu));
     if (!showUserMenu) {
       dispatch(setShowSettings(false));
-      setSessionMenuId(null);
     }
   };
 
   const handleToggleSettingsMenu = () => {
+    dispatch(setShowMobileSidebar(false));
+    setShowMobileMenu(false);
+    setSessionMenuId(null);
     dispatch(setShowSettings(!showSettingsMenu));
     if (!showSettingsMenu) {
       dispatch(setShowUserMenu(false));
-      setSessionMenuId(null);
     }
   };
 
   const handleInstallWorker = () => {
+    closeTransientMenus();
     dispatch(setEditingWorker(null));
     dispatch(setShowWorkerModal(true));
     dispatch(setShowSettings(false));
@@ -89,26 +122,34 @@ export function TopBar({
 
   const handleFullscreenToggle = () => {
     onFullscreen();
+    closeTransientMenus();
     dispatch(setShowSettings(false));
   };
 
   const handleInstallPWA = () => {
     if (!installPromptAvailable) return;
     onInstallPWA();
+    closeTransientMenus();
     dispatch(setShowSettings(false));
   };
 
   const handleChangePassword = () => {
+    closeTransientMenus();
     dispatch(setShowChangePasswordModal(true));
     dispatch(setShowUserMenu(false));
   };
 
   const handleLogout = () => {
+    closeTransientMenus();
     dispatch(logoutAndReset());
     dispatch(setShowUserMenu(false));
   };
 
   const handleSessionMenuToggle = (sessionId: string) => {
+    dispatch(setShowMobileSidebar(false));
+    setShowMobileMenu(false);
+    dispatch(setShowSettings(false));
+    dispatch(setShowUserMenu(false));
     setSessionMenuId((current) => {
       if (current === sessionId) {
         setSessionMenuPosition(null);
@@ -151,18 +192,52 @@ export function TopBar({
   }, [sessionMenuId, updateSessionMenuPosition]);
 
   const handleSendToGrid = (sessionId: string) => {
-    const nextSlots = gridSessionIds.slice(0, 4);
-    while (nextSlots.length < 4) {
-      nextSlots.push('');
-    }
-    const emptyIdx = nextSlots.findIndex((id) => !id);
-    const slotIndex = emptyIdx >= 0 ? emptyIdx : 0;
-
-    if (layoutMode === 'single') {
-      dispatch(setLayoutMode('quad'));
-    }
+    const emptyIdx = gridSessionIds.findIndex((id) => !id);
+    const slotIndex = emptyIdx >= 0 ? emptyIdx : gridSessionIds.length;
     dispatch(assignGridSlot({ slotIndex, sessionId }));
     setSessionMenuId(null);
+  };
+
+  const resolveDropPosition = (event: React.DragEvent<HTMLDivElement>): 'before' | 'after' => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+    return event.clientX >= midpoint ? 'after' : 'before';
+  };
+
+  const handleTabDragOver = (targetSessionId: string) => (event: React.DragEvent<HTMLDivElement>) => {
+    if (!draggingSessionId || draggingSessionId === targetSessionId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setTabDropTarget({ sessionId: targetSessionId, position: resolveDropPosition(event) });
+  };
+
+  const handleTabDrop = (targetSessionId: string) => (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const sessionId = event.dataTransfer.getData('text/plain') || draggingSessionId;
+    if (!sessionId || sessionId === targetSessionId) {
+      setTabDropTarget(null);
+      return;
+    }
+
+    const position = resolveDropPosition(event);
+    dispatch(moveSession({ sessionId, targetSessionId, position }));
+    setTabDropTarget(null);
+  };
+
+  const handleSessionsStripDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    const sessionId = event.dataTransfer.getData('text/plain') || draggingSessionId;
+    if (!sessionId) {
+      setTabDropTarget(null);
+      return;
+    }
+
+    dispatch(moveSession({ sessionId, position: 'end' }));
+    setTabDropTarget(null);
   };
 
   return (
@@ -173,17 +248,32 @@ export function TopBar({
         </span>
       </div>
 
-      <div className="topbar-sessions" ref={sessionsStripRef}>
+      <div
+        className="topbar-sessions"
+        ref={sessionsStripRef}
+        onDragOver={(event) => {
+          if (!draggingSessionId) return;
+          event.preventDefault();
+        }}
+        onDrop={handleSessionsStripDrop}
+      >
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`session-chip ${activeSessionId === session.id ? 'active' : ''}`}
+            className={`session-chip ${activeSessionId === session.id ? 'active' : ''} ${tabDropTarget?.sessionId === session.id ? `drop-${tabDropTarget.position}` : ''}`}
             draggable
             onDragStart={(event) => {
               event.dataTransfer.setData('text/plain', session.id);
               event.dataTransfer.setData('application/x-session-name', session.displayName);
               event.dataTransfer.effectAllowed = 'move';
               onDragStart(session.id, session.displayName, event);
+            }}
+            onDragOver={handleTabDragOver(session.id)}
+            onDrop={handleTabDrop(session.id)}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setTabDropTarget((current) => current?.sessionId === session.id ? null : current);
+              }
             }}
             onDragEnd={onDragEnd}
           >
@@ -214,39 +304,43 @@ export function TopBar({
         ))}
       </div>
 
-      {activeSessionMenu && sessionMenuPosition && (
-        <div
-          className="session-chip-menu floating"
-          style={{ top: `${sessionMenuPosition.top}px`, left: `${sessionMenuPosition.left}px` }}
-        >
-          <button
-            className="session-chip-menu-item"
-            onClick={() => {
-              dispatch(setRenamingSessionId(activeSessionMenu.id));
-              setSessionMenuId(null);
-            }}
-            type="button"
+      {activeSessionMenu && sessionMenuPosition && createPortal(
+        <>
+          {isMobile && <div className="mobile-menu-backdrop" onClick={() => setSessionMenuId(null)} />}
+          <div
+            className="session-chip-menu floating"
+            style={{ top: `${sessionMenuPosition.top}px`, left: `${sessionMenuPosition.left}px` }}
           >
-            Renombrar
-          </button>
-          <button
-            className="session-chip-menu-item"
-            onClick={() => handleSendToGrid(activeSessionMenu.id)}
-            type="button"
-          >
-            Enviar al grid
-          </button>
-          <button
-            className="session-chip-menu-item danger"
-            onClick={() => {
-              onCloseSession(activeSessionMenu.id);
-              setSessionMenuId(null);
-            }}
-            type="button"
-          >
-            Cerrar sesión
-          </button>
-        </div>
+            <button
+              className="session-chip-menu-item"
+              onClick={() => {
+                dispatch(setRenamingSessionId(activeSessionMenu.id));
+                setSessionMenuId(null);
+              }}
+              type="button"
+            >
+              Renombrar
+            </button>
+            <button
+              className="session-chip-menu-item"
+              onClick={() => handleSendToGrid(activeSessionMenu.id)}
+              type="button"
+            >
+              Enviar al grid
+            </button>
+            <button
+              className="session-chip-menu-item danger"
+              onClick={() => {
+                onCloseSession(activeSessionMenu.id);
+                setSessionMenuId(null);
+              }}
+              type="button"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </>,
+        document.body
       )}
 
       <div className="topbar-stats">
@@ -256,89 +350,171 @@ export function TopBar({
       </div>
 
       <div className="topbar-right">
-        {activeSessionId && (
-          <button className="icon-btn resume-btn" onClick={onResume} title="Reanudar sesión activa">
-            <Play />
-          </button>
-        )}
-
-        <div className={`status-dot ${connectionState === 'connected' ? 'ok' :
-          connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
-          }`} title={
-            connectionState === 'connected' ? 'Conectado' :
-              connectionState === 'connecting' ? 'Conectando...' :
-                connectionState === 'reconnecting' ? 'Reconectando...' : 'Desconectado'
-          }>
-        </div>
-
-        {token && currentUser && (
-          <div className="user-menu-container">
+        {/* === MOBILE: single unified menu button === */}
+        {isMobile ? (
+          <div className="mobile-menu-container">
+            {activeSessionId && (
+              <button className="icon-btn resume-btn" onClick={onResume} title="Reanudar sesión activa">
+                <Play />
+              </button>
+            )}
+            <div className={`status-dot ${connectionState === 'connected' ? 'ok' :
+              connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
+              }`} title={
+                connectionState === 'connected' ? 'Conectado' :
+                  connectionState === 'connecting' ? 'Conectando...' :
+                    connectionState === 'reconnecting' ? 'Reconectando...' : 'Desconectado'
+              }>
+            </div>
             <button
-              className="icon-btn user-btn"
-              onClick={handleToggleUserMenu}
-              title={currentUser.username}
+              className={`icon-btn mobile-menu-btn ${showMobileMenu ? 'active' : ''}`}
+              onClick={() => {
+                dispatch(setShowMobileSidebar(false));
+                dispatch(setShowSettings(false));
+                dispatch(setShowUserMenu(false));
+                setShowMobileMenu(!showMobileMenu);
+                setSessionMenuId(null);
+              }}
+              title="Menú"
             >
-              <User />
+              <Menu />
             </button>
-            {showUserMenu && (
-              <div className="user-menu-dropdown">
-                <div className="user-menu-header">
-                  <span className="user-menu-username">{currentUser.username}</span>
-                  {currentUser.isAdmin && <span className="user-menu-badge">Admin</span>}
-                </div>
-                <button
-                  className="user-menu-item"
-                  onClick={handleChangePassword}
-                >
+            {showMobileMenu && createPortal(
+              <>
+                <div className="mobile-menu-backdrop" onClick={() => setShowMobileMenu(false)} />
+                <div className="user-menu-dropdown mobile-unified-menu">
+                {currentUser && (
+                  <div className="user-menu-header">
+                    <span className="user-menu-username">{currentUser.username}</span>
+                    {currentUser.isAdmin && <span className="user-menu-badge">Admin</span>}
+                  </div>
+                )}
+                <button className="user-menu-item" onClick={() => { handleChangePassword(); setShowMobileMenu(false); }}>
                   <KeyRound className="menu-icon" />
                   <span>Cambiar Contraseña</span>
                 </button>
-                <button
-                  className="user-menu-item"
-                  onClick={() => { dispatch(setShowSubscriptionModal(true)); dispatch(setShowUserMenu(false)); }}
-                >
+                <button className="user-menu-item" onClick={() => {
+                  dispatch(setShowSubscriptionModal(true));
+                  setShowMobileMenu(false);
+                }}>
                   <CreditCard className="menu-icon" />
                   <span>Suscripción</span>
                 </button>
-                <button className="user-menu-item logout" onClick={handleLogout}>
-                  <LogOut className="menu-icon" />
-                  <span>Cerrar Sesión</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {token && (
-          <div className="settings-menu-container">
-            <button
-              className={`icon-btn settings-btn ${showSettingsMenu ? 'active' : ''}`}
-              onClick={handleToggleSettingsMenu}
-              title="Configuración"
-            >
-              <Settings />
-            </button>
-            {showSettingsMenu && (
-              <div className="user-menu-dropdown settings-menu-dropdown">
-                <button className="user-menu-item" onClick={handleInstallWorker}>
+                <div className="mobile-menu-divider" />
+                <button className="user-menu-item" onClick={() => { handleInstallWorker(); setShowMobileMenu(false); }}>
                   <Download className="menu-icon" />
                   <span>Instalar worker</span>
                 </button>
-                <button className="user-menu-item" onClick={handleFullscreenToggle}>
+                <button className="user-menu-item" onClick={() => { handleFullscreenToggle(); setShowMobileMenu(false); }}>
                   {isFullscreen ? <Minimize2 className="menu-icon" /> : <Maximize2 className="menu-icon" />}
-                  <span>{isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}</span>
+                  <span>{isFullscreen ? 'Salir pantalla completa' : 'Pantalla completa'}</span>
                 </button>
                 <button
                   className="user-menu-item"
-                  onClick={handleInstallPWA}
+                  onClick={() => { handleInstallPWA(); setShowMobileMenu(false); }}
                   disabled={!installPromptAvailable}
                 >
                   <Smartphone className="menu-icon" />
                   <span>{installPromptAvailable ? 'Instalar PWA' : 'PWA no disponible'}</span>
                 </button>
+                <div className="mobile-menu-divider" />
+                <button className="user-menu-item logout" onClick={() => { handleLogout(); setShowMobileMenu(false); }}>
+                  <LogOut className="menu-icon" />
+                  <span>Cerrar Sesión</span>
+                </button>
               </div>
+              </>,
+              document.body
             )}
           </div>
+        ) : (
+          /* === DESKTOP: individual buttons === */
+          <>
+            {activeSessionId && (
+              <button className="icon-btn resume-btn" onClick={onResume} title="Reanudar sesión activa">
+                <Play />
+              </button>
+            )}
+
+            <div className={`status-dot ${connectionState === 'connected' ? 'ok' :
+              connectionState === 'reconnecting' || connectionState === 'connecting' ? 'warn' : 'bad'
+              }`} title={
+                connectionState === 'connected' ? 'Conectado' :
+                  connectionState === 'connecting' ? 'Conectando...' :
+                    connectionState === 'reconnecting' ? 'Reconectando...' : 'Desconectado'
+              }>
+            </div>
+
+            {token && currentUser && (
+              <div className="user-menu-container">
+                <button
+                  className="icon-btn user-btn"
+                  onClick={handleToggleUserMenu}
+                  title={currentUser.username}
+                >
+                  <User />
+                </button>
+                {showUserMenu && (
+                  <div className="user-menu-dropdown">
+                    <div className="user-menu-header">
+                      <span className="user-menu-username">{currentUser.username}</span>
+                      {currentUser.isAdmin && <span className="user-menu-badge">Admin</span>}
+                    </div>
+                    <button
+                      className="user-menu-item"
+                      onClick={handleChangePassword}
+                    >
+                      <KeyRound className="menu-icon" />
+                      <span>Cambiar Contraseña</span>
+                    </button>
+                    <button
+                      className="user-menu-item"
+                      onClick={() => { dispatch(setShowSubscriptionModal(true)); dispatch(setShowUserMenu(false)); }}
+                    >
+                      <CreditCard className="menu-icon" />
+                      <span>Suscripción</span>
+                    </button>
+                    <button className="user-menu-item logout" onClick={handleLogout}>
+                      <LogOut className="menu-icon" />
+                      <span>Cerrar Sesión</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {token && (
+              <div className="settings-menu-container">
+                <button
+                  className={`icon-btn settings-btn ${showSettingsMenu ? 'active' : ''}`}
+                  onClick={handleToggleSettingsMenu}
+                  title="Configuración"
+                >
+                  <Settings />
+                </button>
+                {showSettingsMenu && (
+                  <div className="user-menu-dropdown settings-menu-dropdown">
+                    <button className="user-menu-item" onClick={handleInstallWorker}>
+                      <Download className="menu-icon" />
+                      <span>Instalar worker</span>
+                    </button>
+                    <button className="user-menu-item" onClick={handleFullscreenToggle}>
+                      {isFullscreen ? <Minimize2 className="menu-icon" /> : <Maximize2 className="menu-icon" />}
+                      <span>{isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}</span>
+                    </button>
+                    <button
+                      className="user-menu-item"
+                      onClick={handleInstallPWA}
+                      disabled={!installPromptAvailable}
+                    >
+                      <Smartphone className="menu-icon" />
+                      <span>{installPromptAvailable ? 'Instalar PWA' : 'PWA no disponible'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

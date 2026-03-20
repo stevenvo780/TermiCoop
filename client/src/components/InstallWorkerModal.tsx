@@ -22,7 +22,7 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
   const [packageStatus, setPackageStatus] = useState<{
     deb: 'checking' | 'ok' | 'missing' | 'unknown';
     rpm: 'checking' | 'ok' | 'missing' | 'unknown';
-  }>({ deb: 'checking', rpm: 'checking' });
+  }>({ deb: 'unknown', rpm: 'unknown' });
   const [osTab, setOsTab] = useState<'debian' | 'rhel' | 'arch' | 'manual'>('debian');
   const [debianDistro, setDebianDistro] = useState('ubuntu');
   const [debianVersion, setDebianVersion] = useState('22.04');
@@ -88,6 +88,11 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
   }, [debianVersion, isUbuntu, ubuntuVersions]);
 
   useEffect(() => {
+    if (!canInstall) {
+      setPackageStatus({ deb: 'unknown', rpm: 'unknown' });
+      return;
+    }
+
     let isMounted = true;
     const checkPackage = async (url: string) => {
       try {
@@ -101,10 +106,26 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
     };
 
     const run = async () => {
-      setPackageStatus({ deb: 'checking', rpm: 'checking' });
-      const [deb, rpm] = await Promise.all([checkPackage(debDownloadUrl), checkPackage(rpmDownloadUrl)]);
+      if (osTab === 'debian') {
+        setPackageStatus((current) => ({ ...current, deb: 'checking' }));
+        const deb = await checkPackage(debDownloadUrl);
+        if (isMounted) {
+          setPackageStatus((current) => ({ ...current, deb }));
+        }
+        return;
+      }
+
+      if (osTab === 'rhel') {
+        setPackageStatus((current) => ({ ...current, rpm: 'checking' }));
+        const rpm = await checkPackage(rpmDownloadUrl);
+        if (isMounted) {
+          setPackageStatus((current) => ({ ...current, rpm }));
+        }
+        return;
+      }
+
       if (isMounted) {
-        setPackageStatus({ deb, rpm });
+        setPackageStatus((current) => ({ ...current, deb: 'unknown', rpm: 'unknown' }));
       }
     };
 
@@ -112,7 +133,7 @@ export function InstallWorkerModal({ initialWorker, onClose, onWorkerCreated, ne
     return () => {
       isMounted = false;
     };
-  }, [baseUrl, debDownloadUrl, rpmDownloadUrl]);
+  }, [canInstall, debDownloadUrl, osTab, rpmDownloadUrl]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -26,9 +26,6 @@ const SESSION_OUTPUT_KEY = 'ut-session-output-v1';
 const ACTIVE_SESSION_KEY = 'ut-active-session';
 const GRID_SLOTS_KEY = 'ut-grid-slots-v1';
 const LAST_WORKER_KEY = 'ut-last-worker';
-const LAYOUT_MODE_KEY = 'ut-layout-mode';
-
-export type LayoutMode = 'single' | 'split-vertical' | 'quad';
 
 const parseStored = <T,>(value: string | null, fallback: T): T => {
   if (!value) return fallback;
@@ -48,7 +45,6 @@ interface SessionsState {
   lastWorkerKey: string | null;
   isRestored: boolean;
   draggingSessionId: string | null;
-  layoutMode: LayoutMode;
   serverSessions: ServerSession[];
 }
 
@@ -56,12 +52,11 @@ const initialState: SessionsState = {
   sessions: parseStored<StoredSession[]>(localStorage.getItem(SESSION_STORE_KEY), []),
   activeSessionId: localStorage.getItem(ACTIVE_SESSION_KEY),
   offlineSessionIds: [],
-  gridSessionIds: parseStored<string[]>(localStorage.getItem(GRID_SLOTS_KEY), []).slice(0, 4),
+  gridSessionIds: parseStored<string[]>(localStorage.getItem(GRID_SLOTS_KEY), []).filter(Boolean),
   sessionOutput: parseStored<Record<string, string>>(localStorage.getItem(SESSION_OUTPUT_KEY), {}),
   lastWorkerKey: localStorage.getItem(LAST_WORKER_KEY),
   isRestored: false,
   draggingSessionId: null,
-  layoutMode: (localStorage.getItem(LAYOUT_MODE_KEY) as LayoutMode) || 'single',
   serverSessions: [],
 };
 
@@ -74,7 +69,6 @@ const emptyState: SessionsState = {
   lastWorkerKey: null,
   isRestored: false,
   draggingSessionId: null,
-  layoutMode: 'single',
   serverSessions: [],
 };
 
@@ -91,7 +85,7 @@ const sessionsSlice = createSlice({
     },
     removeSession: (state, action: PayloadAction<string>) => {
       state.sessions = state.sessions.filter(s => s.id !== action.payload);
-      state.gridSessionIds = state.gridSessionIds.map(id => id === action.payload ? '' : id);
+      state.gridSessionIds = state.gridSessionIds.filter(id => id && id !== action.payload);
       delete state.sessionOutput[action.payload];
       if (state.activeSessionId === action.payload) {
         state.activeSessionId = state.sessions.length > 0 ? state.sessions[state.sessions.length - 1].id : null;
@@ -106,6 +100,33 @@ const sessionsSlice = createSlice({
         Object.assign(session, action.payload);
         localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
       }
+    },
+    moveSession: (state, action: PayloadAction<{ sessionId: string; targetSessionId?: string; position?: 'before' | 'after' | 'end' }>) => {
+      const { sessionId, targetSessionId, position = 'before' } = action.payload;
+      const sourceIndex = state.sessions.findIndex((session) => session.id === sessionId);
+      if (sourceIndex < 0) return;
+
+      const nextSessions = [...state.sessions];
+      const [movedSession] = nextSessions.splice(sourceIndex, 1);
+      if (!movedSession) return;
+
+      if (!targetSessionId || position === 'end') {
+        nextSessions.push(movedSession);
+        state.sessions = nextSessions;
+        localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
+        return;
+      }
+
+      const targetIndex = nextSessions.findIndex((session) => session.id === targetSessionId);
+      if (targetIndex < 0) {
+        nextSessions.push(movedSession);
+      } else {
+        const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+        nextSessions.splice(insertIndex, 0, movedSession);
+      }
+
+      state.sessions = nextSessions;
+      localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
     },
     setActiveSession: (state, action: PayloadAction<string | null>) => {
       state.activeSessionId = action.payload;
@@ -124,29 +145,21 @@ const sessionsSlice = createSlice({
       state.offlineSessionIds = action.payload;
     },
     setGridSessionIds: (state, action: PayloadAction<string[]>) => {
-      state.gridSessionIds = action.payload.slice(0, 4);
+      state.gridSessionIds = action.payload.filter(Boolean);
       localStorage.setItem(GRID_SLOTS_KEY, JSON.stringify(state.gridSessionIds));
     },
     assignGridSlot: (state, action: PayloadAction<{ slotIndex: number; sessionId: string }>) => {
       const { slotIndex, sessionId } = action.payload;
-      // Ensure 4 slots
-      while (state.gridSessionIds.length < 4) {
-        state.gridSessionIds.push('');
+      const nextSlots = state.gridSessionIds.filter((id) => id && id !== sessionId);
+      const boundedIndex = Math.max(0, Math.min(slotIndex, nextSlots.length));
+      nextSlots.splice(boundedIndex, 0, sessionId);
+      state.gridSessionIds = nextSlots;
+      if (state.gridSessionIds.length === 1) {
+        state.gridSessionIds = [sessionId];
       }
-      // Clear ID from other slots
-      for (let i = 0; i < 4; i++) {
-        if (i !== slotIndex && state.gridSessionIds[i] === sessionId) {
-          state.gridSessionIds[i] = '';
-        }
-      }
-      state.gridSessionIds[slotIndex] = sessionId;
       state.activeSessionId = sessionId;
       localStorage.setItem(GRID_SLOTS_KEY, JSON.stringify(state.gridSessionIds));
       localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
-    },
-    clearGrid: (state) => {
-      state.gridSessionIds = [];
-      localStorage.setItem(GRID_SLOTS_KEY, JSON.stringify([]));
     },
     updateSessionOutput: (state, action: PayloadAction<{ sessionId: string; output: string }>) => {
       const MAX_OUTPUT_CHARS = 20000;
@@ -178,15 +191,10 @@ const sessionsSlice = createSlice({
       localStorage.removeItem(ACTIVE_SESSION_KEY);
       localStorage.removeItem(GRID_SLOTS_KEY);
       localStorage.removeItem(LAST_WORKER_KEY);
-      localStorage.removeItem(LAYOUT_MODE_KEY);
     },
     setSessions: (state, action: PayloadAction<StoredSession[]>) => {
       state.sessions = action.payload;
       localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
-    },
-    setLayoutMode: (state, action: PayloadAction<LayoutMode>) => {
-      state.layoutMode = action.payload;
-      localStorage.setItem(LAYOUT_MODE_KEY, action.payload);
     },
     setServerSessions: (state, action: PayloadAction<ServerSession[]>) => {
       state.serverSessions = action.payload;
@@ -198,11 +206,11 @@ export const {
   addSession,
   removeSession,
   updateSession,
+  moveSession,
   setActiveSession,
   setOfflineSessionIds,
   setGridSessionIds,
   assignGridSlot,
-  clearGrid,
   updateSessionOutput,
   setSessionOutput,
   setIsRestored,
@@ -210,7 +218,6 @@ export const {
   clearAllSessions,
   resetSessionsState,
   setSessions,
-  setLayoutMode,
   setServerSessions,
 } = sessionsSlice.actions;
 

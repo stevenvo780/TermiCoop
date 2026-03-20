@@ -55,6 +55,26 @@ Genera `.deb` para Ubuntu 20.04/22.04/24.04 con `libc6` mínimo adecuado y `pty.
    npm run start:client
    ```
 
+## Docker dev con 8 workers
+
+El archivo `docker-compose.dev.yml` incluye `8` workers Docker (`worker-01` ... `worker-08`) para simular carga y validar la UI con muchos workers conectados a la vez.
+
+Levantar el stack completo:
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+Ver el registro de Nexus y de todos los workers:
+```bash
+docker compose -f docker-compose.dev.yml logs -f nexus worker-01 worker-02 worker-03 worker-04 worker-05 worker-06 worker-07 worker-08
+```
+
+Si quieres resembrar la base de desarrollo desde cero:
+```bash
+rm -rf .docker-data/nexus
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
 ## Debian (.deb) Packages
 
 Build .deb packages for Nexus and Worker (systemd + config included):

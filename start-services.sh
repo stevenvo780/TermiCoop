@@ -1,5 +1,11 @@
 #!/bin/bash
 
+set -a
+if [ -f ./.env ]; then
+  . ./.env
+fi
+set +a
+
 # 1. Limpieza de procesos anteriores para evitar conflictos de puertos
 echo "Deteniendo procesos anteriores..."
 pkill -f "vite"

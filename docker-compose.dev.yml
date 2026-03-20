@@ -1,4 +1,18 @@
-version: '3.9'
+x-worker-base: &worker-base
+  build:
+    context: .
+    dockerfile: docker/dev/Dockerfile
+    args:
+      SERVICE: worker
+  environment:
+    NEXUS_URL: http://nexus:3002
+    WORKER_HEARTBEAT_MS: 5000
+    AUTO_RESTART_SHELL: "true"
+  depends_on:
+    - nexus
+  security_opt:
+    - seccomp=unconfined
+    - label=disable
 
 services:
   nexus:
@@ -11,10 +25,11 @@ services:
       PORT: 3002
       NEXUS_JWT_SECRET: dev-jwt-secret
       ADMIN_PASSWORD: "dev-change-me"
-      WORKER_TOKEN: dev-shared-token
+      WORKER_TOKEN: dev-worker-token-01
       NEXUS_SETUP_TOKEN: dev-setup-token
       ALLOW_UNAUTHENTICATED_WORKERS: "false"
       CLIENT_ORIGIN: http://localhost:5173
+      DEV_WORKER_SPECS: "Docker-Dev-Worker-01:dev-worker-token-01,Docker-Dev-Worker-02:dev-worker-token-02,Docker-Dev-Worker-03:dev-worker-token-03,Docker-Dev-Worker-04:dev-worker-token-04,Docker-Dev-Worker-05:dev-worker-token-05,Docker-Dev-Worker-06:dev-worker-token-06,Docker-Dev-Worker-07:dev-worker-token-07,Docker-Dev-Worker-08:dev-worker-token-08"
     volumes:
       - ./.docker-data/nexus:/app/.qodo
     security_opt:
@@ -23,20 +38,82 @@ services:
     ports:
       - "3002:3002"
 
-  worker:
-    build:
-      context: .
-      dockerfile: docker/dev/Dockerfile
-      args:
-        SERVICE: worker
+  worker-01:
+    <<: *worker-base
+    container_name: termicoop-worker-01
     environment:
       NEXUS_URL: http://nexus:3002
-      WORKER_NAME: dev-worker
-      WORKER_TOKEN: dev-shared-token
+      WORKER_NAME: Docker-Dev-Worker-01
+      WORKER_TOKEN: dev-worker-token-01
       WORKER_HEARTBEAT_MS: 5000
       AUTO_RESTART_SHELL: "true"
-    depends_on:
-      - nexus
-    security_opt:
-      - seccomp=unconfined
-      - label=disable
+
+  worker-02:
+    <<: *worker-base
+    container_name: termicoop-worker-02
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-02
+      WORKER_TOKEN: dev-worker-token-02
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"
+
+  worker-03:
+    <<: *worker-base
+    container_name: termicoop-worker-03
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-03
+      WORKER_TOKEN: dev-worker-token-03
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"
+
+  worker-04:
+    <<: *worker-base
+    container_name: termicoop-worker-04
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-04
+      WORKER_TOKEN: dev-worker-token-04
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"
+
+  worker-05:
+    <<: *worker-base
+    container_name: termicoop-worker-05
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-05
+      WORKER_TOKEN: dev-worker-token-05
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"
+
+  worker-06:
+    <<: *worker-base
+    container_name: termicoop-worker-06
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-06
+      WORKER_TOKEN: dev-worker-token-06
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"
+
+  worker-07:
+    <<: *worker-base
+    container_name: termicoop-worker-07
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-07
+      WORKER_TOKEN: dev-worker-token-07
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"
+
+  worker-08:
+    <<: *worker-base
+    container_name: termicoop-worker-08
+    environment:
+      NEXUS_URL: http://nexus:3002
+      WORKER_NAME: Docker-Dev-Worker-08
+      WORKER_TOKEN: dev-worker-token-08
+      WORKER_HEARTBEAT_MS: 5000
+      AUTO_RESTART_SHELL: "true"

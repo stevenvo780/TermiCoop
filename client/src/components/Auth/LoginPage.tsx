@@ -88,6 +88,15 @@ export function LoginPage() {
     ref.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const openLoginModal = () => {
+    setShowLogin(true);
+  };
+
+  const closeLoginModal = () => {
+    if (busy) return;
+    setShowLogin(false);
+  };
+
   const copyInstall = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopied(key);
@@ -110,8 +119,8 @@ export function LoginPage() {
           <div className="nav-links">
             <button onClick={() => scrollTo(installRef)} className="nav-link">Instalar</button>
             <button onClick={() => scrollTo(pricingRef)} className="nav-link">Planes</button>
-            <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }} className="nav-link">Iniciar Sesión</button>
-            <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }} className="nav-cta">
+            <button onClick={openLoginModal} className="nav-link">Iniciar Sesión</button>
+            <button onClick={openLoginModal} className="nav-cta">
               Comenzar Gratis <ArrowRight size={16} />
             </button>
           </div>
@@ -131,7 +140,7 @@ export function LoginPage() {
             VPS o máquina en tu red — todo desde tu navegador, sin instalar nada en el cliente.
           </p>
           <div className="hero-actions">
-            <button className="btn-hero-primary" onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}>
+            <button className="btn-hero-primary" onClick={openLoginModal}>
               Comenzar Gratis <ArrowRight size={18} />
             </button>
             <button className="btn-hero-secondary" onClick={() => scrollTo(pricingRef)}>
@@ -466,7 +475,7 @@ sudo systemctl status ultimate-terminal-worker`}</pre>
                 <button
                   className={`pricing-cta ${isPopular ? 'primary' : ''}`}
                   style={isPopular ? { background: color } : {}}
-                  onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}
+                  onClick={openLoginModal}
                 >
                   {plan.price === 0 ? 'Comenzar Gratis' : 'Suscribirse'}
                 </button>
@@ -482,7 +491,7 @@ sudo systemctl status ultimate-terminal-worker`}</pre>
         <h2>¿Listo para tomar el control?</h2>
         <p>Crea tu cuenta gratuita y conecta tu primer servidor en menos de 5 minutos.</p>
         <div className="cta-actions">
-          <button className="btn-hero-primary" onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}>
+          <button className="btn-hero-primary" onClick={openLoginModal}>
             Comenzar Gratis <ArrowRight size={18} />
           </button>
           <a href="https://github.com/stevenvo780/TermiCoop" target="_blank" rel="noopener noreferrer" className="btn-hero-secondary">
@@ -492,14 +501,17 @@ sudo systemctl status ultimate-terminal-worker`}</pre>
       </section>
 
       {/* ─── Login / Register ─── */}
-      <section className={`login-section ${showLogin ? 'visible' : ''}`} ref={loginRef} id="login">
-        <div className="login-container">
+      {showLogin && (
+        <div className="login-modal-backdrop" onClick={closeLoginModal}>
+          <section className="login-section login-modal" ref={loginRef} id="login" onClick={(event) => event.stopPropagation()}>
+            <div className="login-container">
           <div className="login-header">
             <div className="login-logo">
               <span className="logo-icon"><Hexagon /></span>
               <h1>TermiCoop</h1>
             </div>
             <p className="login-subtitle">Inicia sesión o crea tu cuenta</p>
+            <button className="login-close-btn" onClick={closeLoginModal} type="button" aria-label="Cerrar">×</button>
           </div>
 
           <form className="login-form" onSubmit={(e) => handleSubmit(e, false)}>
@@ -549,8 +561,10 @@ sudo systemctl status ultimate-terminal-worker`}</pre>
           <div className="login-footer">
             <p>Control remoto seguro via WebSocket · Cifrado de extremo a extremo</p>
           </div>
+            </div>
+          </section>
         </div>
-      </section>
+      )}
 
       {/* ─── Footer ─── */}
       <footer className="landing-footer">
@@ -562,7 +576,7 @@ sudo systemctl status ultimate-terminal-worker`}</pre>
             <a href="https://github.com/stevenvo780/TermiCoop" target="_blank" rel="noopener noreferrer">GitHub</a>
             <button onClick={() => scrollTo(installRef)}>Instalar</button>
             <button onClick={() => scrollTo(pricingRef)}>Planes</button>
-            <button onClick={() => { setShowLogin(true); setTimeout(() => scrollTo(loginRef), 100); }}>Iniciar Sesión</button>
+            <button onClick={openLoginModal}>Iniciar Sesión</button>
           </div>
           <p>© {new Date().getFullYear()} TermiCoop. Terminal remoto distribuido.</p>
         </div>

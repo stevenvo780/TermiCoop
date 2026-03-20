@@ -1,0 +1,136 @@
+/* MobileKeyBar - Only visible on mobile/touch devices */
+.mobile-keybar {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .mobile-keybar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 800;
+    background: linear-gradient(180deg, rgba(10, 10, 15, 0.97) 0%, rgba(5, 5, 8, 0.99) 100%);
+    border-top: 1px solid rgba(96, 165, 250, 0.15);
+    padding: 6px 4px;
+    gap: 4px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    /* Safe area for notched phones */
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  .keybar-row {
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 2px;
+  }
+
+  .keybar-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .keybar-key {
+    flex: 1 1 0;
+    min-width: 36px;
+    max-width: 60px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: #c8d3e0;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 100ms ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    white-space: nowrap;
+    padding: 0 4px;
+  }
+
+  .keybar-key:active {
+    background: rgba(96, 165, 250, 0.25);
+    border-color: rgba(96, 165, 250, 0.5);
+    color: #fff;
+    transform: scale(0.94);
+  }
+
+  .keybar-key.toggle {
+    background: rgba(168, 85, 247, 0.08);
+    border-color: rgba(168, 85, 247, 0.2);
+    color: #c4b5fd;
+  }
+
+  .keybar-key.toggle.active {
+    background: rgba(168, 85, 247, 0.3);
+    border-color: rgba(168, 85, 247, 0.6);
+    color: #e9d5ff;
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+  }
+
+  /* Ctrl combos panel */
+  .keybar-ctrl-panel {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+    margin-bottom: 2px;
+  }
+
+  .keybar-ctrl-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ctrl-panel-label {
+    color: #c4b5fd;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    padding: 0 4px;
+  }
+
+  .keybar-ctrl-combo {
+    flex-shrink: 0;
+    min-width: 32px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    border-radius: 6px;
+    color: #e9d5ff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 100ms ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    padding: 0 8px;
+  }
+
+  .keybar-ctrl-combo:active {
+    background: rgba(168, 85, 247, 0.4);
+    transform: scale(0.92);
+  }
+}

@@ -3,7 +3,6 @@ import {
   setActiveSession,
   setRenamingSessionId,
   assignGridSlot,
-  setLayoutMode,
 } from '../../../store';
 import type { DragEvent } from 'react';
 import { Grid2x2, Pencil, X } from 'lucide-react';
@@ -21,20 +20,14 @@ export function SessionList({ onCloseSession, onDragStart, onDragEnd }: SessionL
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
   const offlineSessionIds = useAppSelector((state) => state.sessions.offlineSessionIds);
   const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
-  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
 
   const handleSwitchSession = (sessionId: string) => {
     dispatch(setActiveSession(sessionId));
   };
 
   const handlePinToGrid = (sessionId: string) => {
-    // Find first empty slot
     const emptyIdx = gridSessionIds.findIndex((id) => !id);
-    const slotIndex = emptyIdx >= 0 ? emptyIdx : 0;
-
-    if (layoutMode === 'single') {
-      dispatch(setLayoutMode('quad'));
-    }
+    const slotIndex = emptyIdx >= 0 ? emptyIdx : gridSessionIds.length;
     dispatch(assignGridSlot({ slotIndex, sessionId }));
   };
 

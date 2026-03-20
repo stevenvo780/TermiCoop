@@ -19,6 +19,10 @@ export interface WorkerShare {
 }
 
 export class WorkerModel {
+  static async markAllOffline(): Promise<void> {
+    await db.run(`UPDATE workers SET status = 'offline'`);
+  }
+
   static async create(ownerId: number, name: string, id?: string, fixedApiKey?: string): Promise<Worker> {
     const workerId = id || crypto.randomUUID();
     const apiKey = fixedApiKey || generateApiKey();

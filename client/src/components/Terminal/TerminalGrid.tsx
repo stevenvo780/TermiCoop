@@ -1,17 +1,16 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
-import type { DragEvent, RefObject } from 'react';
-import ReactGridLayout, { WidthProvider } from 'react-grid-layout/legacy';
-import { ArrowDownToLine, Columns2, Grid2x2, Hexagon, Plus, Square, X } from 'lucide-react';
+import type { DragEvent, RefObject, TouchEvent as ReactTouchEvent } from 'react';
+import ReactGridLayout, { WidthProvider, type Layout } from 'react-grid-layout/legacy';
+import { ArrowDownToLine, ChevronLeft, ChevronRight, GripHorizontal, Hexagon, Plus, X } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  setLayoutMode,
+  setActiveSession,
   assignGridSlot,
-  clearGrid,
   setShowDropOverlay,
   setDraggingSessionId,
   setGridSessionIds,
 } from '../../store';
-import type { TerminalInstance } from '../../App'; // We'll need to export this interface from App
+import type { TerminalInstance } from '../../App';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './TerminalGrid.css';
@@ -39,6 +38,11 @@ function TerminalSlot({
   onRelease?: (container: HTMLDivElement) => void;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const fitTerminal = useCallback(() => {
+    requestAnimationFrame(() => {
+      instance.fitAddon.fit();
+    });
+  }, [instance]);
 
   useEffect(() => {
     if (instance && wrapperRef.current) {
@@ -55,19 +59,22 @@ function TerminalSlot({
         attached.style.order = '';
       }
 
-      // Request fit
-      requestAnimationFrame(() => {
-        instance.fitAddon.fit();
+      fitTerminal();
+
+      const resizeObserver = new ResizeObserver(() => {
+        fitTerminal();
       });
+      resizeObserver.observe(wrapper);
 
       // Cleanup: when instance changes or component unmounts, release the container
       return () => {
+        resizeObserver.disconnect();
         if (onRelease) {
           onRelease(container);
         }
       };
     }
-  }, [instance, onRelease]);
+  }, [fitTerminal, instance, onRelease]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -82,14 +89,13 @@ function TerminalSlot({
       className={`terminal-slot-wrapper ${className || ''}`}
       onDrop={onDrop}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+      style={{ width: '100%', height: '100%', overflow: 'hidden', flex: 1, minHeight: 0 }}
     />
   );
 }
 
 export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: TerminalGridProps) {
   const dispatch = useAppDispatch();
-  const layoutMode = useAppSelector((state) => state.sessions.layoutMode);
   const sessions = useAppSelector((state) => state.sessions.sessions);
   const gridSessionIds = useAppSelector((state) => state.sessions.gridSessionIds);
   const activeSessionId = useAppSelector((state) => state.sessions.activeSessionId);
@@ -100,8 +106,19 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
   const [gridHeight, setGridHeight] = useState(0);
   const [instancesSnapshot, setInstancesSnapshot] = useState<Map<string, TerminalInstance>>(new Map());
 
+  // Mobile detection & swipe
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1100);
+  const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const swipeThreshold = 60;
+
   useEffect(() => {
-    if (layoutMode === 'single') return;
+    const handleResize = () => setIsMobile(window.innerWidth <= 1100);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (gridSessionIds.filter(Boolean).length === 0) return;
     const node = gridAreaRef.current;
     if (!node) return;
     const observer = new ResizeObserver((entries) => {
@@ -112,18 +129,22 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [layoutMode]);
+  }, [gridSessionIds]);
 
   useEffect(() => {
     setInstancesSnapshot(new Map(instancesRef.current));
-  }, [instancesRef, sessions, gridSessionIds, activeSessionId, layoutMode, instancesVersion]);
+  }, [instancesRef, sessions, gridSessionIds, activeSessionId, instancesVersion]);
 
-  const handleLayoutChange = (mode: 'single' | 'split-vertical' | 'quad') => {
-    if (layoutMode === 'single' && activeSessionId && !gridSessionIds[0]) {
-      dispatch(assignGridSlot({ slotIndex: 0, sessionId: activeSessionId }));
-    }
-    dispatch(setLayoutMode(mode));
-  };
+  const buildNextGridSlots = useCallback(() => {
+    return [...gridSessionIds];
+  }, [gridSessionIds]);
+
+  const seedGridWithActiveSession = useCallback((nextSlots: string[]) => {
+    if (!activeSessionId) return nextSlots;
+    if (nextSlots.some(Boolean)) return nextSlots;
+    nextSlots[0] = activeSessionId;
+    return nextSlots;
+  }, [activeSessionId]);
 
   const handleDropOnSlot = (slotIndex: number) => (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -140,11 +161,10 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
     event.preventDefault();
     const sessionId = event.dataTransfer.getData('text/plain');
     if (sessionId) {
-      dispatch(assignGridSlot({ slotIndex: hotspotIndex, sessionId }));
-      if (layoutMode === 'single') {
-        if (hotspotIndex === 1) dispatch(setLayoutMode('split-vertical'));
-        else if (hotspotIndex > 1) dispatch(setLayoutMode('quad'));
-      }
+      const nextSlots = seedGridWithActiveSession(buildNextGridSlots());
+      const preferredSlot = hotspotIndex === 0 ? 1 : hotspotIndex;
+      dispatch(setGridSessionIds(nextSlots));
+      dispatch(assignGridSlot({ slotIndex: Math.min(nextSlots.length, preferredSlot), sessionId }));
     }
     dispatch(setDraggingSessionId(null));
     dispatch(setShowDropOverlay(false));
@@ -160,11 +180,7 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
   };
 
   const handleClearSlot = (slotIndex: number) => {
-    const nextSlots = gridSessionIds.slice(0, 4);
-    while (nextSlots.length < 4) {
-      nextSlots.push('');
-    }
-    nextSlots[slotIndex] = '';
+    const nextSlots = gridSessionIds.filter((_, index) => index !== slotIndex);
     dispatch(setGridSessionIds(nextSlots));
   };
 
@@ -176,28 +192,87 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
     }
   }, [containerRef]);
 
-  const gridSlots = useMemo(() => (
-    layoutMode === 'split-vertical' ? [0, 1] : [0, 1, 2, 3]
-  ), [layoutMode]);
-  const gridRows = layoutMode === 'split-vertical' ? 1 : 2;
+  // ---- Mobile swipe to switch sessions ----
+  const handleTouchStart = useCallback((e: ReactTouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+  }, [isMobile]);
+
+  const handleTouchEnd = useCallback((e: ReactTouchEvent) => {
+    if (!isMobile || !touchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+    const dt = Date.now() - touchStartRef.current.t;
+    touchStartRef.current = null;
+
+    // Only horizontal swipes, fast enough, not too vertical
+    if (dt > 500 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+    if (Math.abs(dx) < swipeThreshold) return;
+
+    const currentIdx = sessions.findIndex((s) => s.id === activeSessionId);
+    if (currentIdx < 0) return;
+
+    if (dx < 0 && currentIdx < sessions.length - 1) {
+      // Swipe left → next
+      dispatch(setActiveSession(sessions[currentIdx + 1].id));
+    } else if (dx > 0 && currentIdx > 0) {
+      // Swipe right → prev
+      dispatch(setActiveSession(sessions[currentIdx - 1].id));
+    }
+  }, [isMobile, sessions, activeSessionId, dispatch]);
+
+  const currentSessionIndex = sessions.findIndex((s) => s.id === activeSessionId);
+
+  const filledGridCount = useMemo(() => gridSessionIds.filter(Boolean).length, [gridSessionIds]);
+  const gridSlots = useMemo(() => gridSessionIds.map((_, index) => index), [gridSessionIds]);
+  const filledGridSlots = useMemo(() => gridSlots, [gridSlots]);
+  const visibleGridSlots = useMemo(() => {
+    if (draggingSessionId) return [...gridSlots, gridSlots.length];
+    if (filledGridSlots.length > 0) return filledGridSlots;
+    return [];
+  }, [draggingSessionId, filledGridSlots, gridSlots]);
+  const gridColumns = useMemo(() => {
+    if (visibleGridSlots.length <= 1) return 1;
+    if (visibleGridSlots.length <= 4) return 2;
+    if (visibleGridSlots.length <= 9) return 3;
+    return Math.min(4, Math.ceil(Math.sqrt(visibleGridSlots.length)));
+  }, [visibleGridSlots.length]);
+  const gridRows = Math.max(1, Math.ceil(Math.max(visibleGridSlots.length, 1) / gridColumns));
   const gridMargin: [number, number] = [8, 8];
   const rowHeight = gridHeight > 0
     ? Math.max(1, Math.floor((gridHeight - gridMargin[1] * (gridRows - 1)) / gridRows))
     : 200;
 
-  const layout = useMemo(() => gridSlots.map((slotIndex, positionIndex) => ({
-    i: slotIndex.toString(),
-    x: positionIndex % 2,
-    y: Math.floor(positionIndex / 2),
-    w: 1,
-    h: 1,
-    static: true,
-  })), [gridSlots]);
+  const layout = useMemo(() => {
+    return visibleGridSlots.map((slotIndex, positionIndex) => ({
+      i: slotIndex.toString(),
+      x: positionIndex % gridColumns,
+      y: Math.floor(positionIndex / gridColumns),
+      w: 1,
+      h: 1,
+    }));
+  }, [gridColumns, visibleGridSlots]);
+
+  // Handle grid layout change when user drags cells to reorder
+  const handleGridLayoutChange = useCallback((newLayout: Layout) => {
+    // Sort by position (top-left to bottom-right) and rebuild gridSessionIds
+    const sorted = [...newLayout].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+    const reorderedIds = sorted.map((item) => {
+      const slotIdx = parseInt(item.i, 10);
+      return gridSessionIds[slotIdx] || '';
+    });
+    // Only dispatch if actually changed
+    const changed = reorderedIds.some((id, idx) => id !== (gridSessionIds[idx] || ''));
+    if (changed) {
+      dispatch(setGridSessionIds(reorderedIds));
+    }
+  }, [gridSessionIds, dispatch]);
 
   // Render logic
   const renderContent = () => {
-    // Single Mode
-    if (layoutMode === 'single') {
+    if (filledGridCount === 0) {
       const activeInstance = activeSessionId ? instancesSnapshot.get(activeSessionId) : undefined;
 
       if (!activeInstance && sessions.length > 0 && token) {
@@ -232,23 +307,30 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
         <GridLayout
           className="terminal-grid-layout"
           layout={layout}
-          cols={2}
+          cols={gridColumns}
           rowHeight={rowHeight}
           margin={gridMargin}
           containerPadding={[0, 0]}
           isResizable={false}
-          isDraggable={false}
+          isDraggable={true}
           autoSize={false}
           compactType={null}
           preventCollision
+          onLayoutChange={handleGridLayoutChange}
+          draggableHandle=".grid-drag-handle"
         >
-          {gridSlots.map((slotIndex) => {
+          {visibleGridSlots.map((slotIndex) => {
             const sessionId = gridSessionIds[slotIndex];
             const instance = sessionId ? instancesSnapshot.get(sessionId) : undefined;
 
             if (instance) {
+              const sessionName = sessions.find(s => s.id === sessionId)?.displayName || '';
               return (
                 <div key={slotIndex.toString()} className="grid-cell">
+                  <div className="grid-drag-handle" title="Arrastrar para reordenar">
+                    <GripHorizontal />
+                    <span className="grid-drag-label">{sessionName}</span>
+                  </div>
                   <TerminalSlot
                     instance={instance}
                     isActive={sessionId === activeSessionId}
@@ -305,49 +387,53 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
   return (
     <div
       ref={containerRef}
-      className={`terminal-container layout-${layoutMode} ${layoutMode !== 'single' ? 'grid-layout' : ''}`}
+      className={`terminal-container ${filledGridCount > 0 ? 'grid-layout' : ''} ${isMobile ? 'is-mobile' : ''}`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      <div className="terminal-toolbar">
-        <div className="layout-toggle">
-          <button
-            className={`layout-icon-btn ${layoutMode === 'single' ? 'active' : ''}`}
-            onClick={() => dispatch(setLayoutMode('single'))}
-            title="Vista única"
-          >
-            <Square />
-          </button>
-          <button
-            className={`layout-icon-btn ${layoutMode === 'split-vertical' ? 'active' : ''}`}
-            onClick={() => handleLayoutChange('split-vertical')}
-            title="Vista Dividida"
-          >
-            <Columns2 />
-          </button>
-          <button
-            className={`layout-icon-btn ${layoutMode === 'quad' ? 'active' : ''}`}
-            onClick={() => handleLayoutChange('quad')}
-            title="Vista Cuádruple"
-          >
-            <Grid2x2 />
-          </button>
-        </div>
+      {/* Mobile session indicator + swipe nav */}
+      {isMobile && sessions.length > 1 && (
+        <>
+          <div className="mobile-session-indicator">
+            <button
+              className="mobile-nav-btn"
+              disabled={currentSessionIndex <= 0}
+              onClick={() => currentSessionIndex > 0 && dispatch(setActiveSession(sessions[currentSessionIndex - 1].id))}
+              type="button"
+            >
+              <ChevronLeft />
+            </button>
+            <div className="mobile-session-dots">
+              {sessions.map((s, idx) => (
+                <button
+                  key={s.id}
+                  className={`session-dot ${idx === currentSessionIndex ? 'active' : ''}`}
+                  onClick={() => dispatch(setActiveSession(s.id))}
+                  title={s.displayName}
+                  type="button"
+                />
+              ))}
+            </div>
+            <span className="mobile-session-name">
+              {sessions[currentSessionIndex]?.displayName || '—'}
+            </span>
+            <button
+              className="mobile-nav-btn"
+              disabled={currentSessionIndex >= sessions.length - 1}
+              onClick={() => currentSessionIndex < sessions.length - 1 && dispatch(setActiveSession(sessions[currentSessionIndex + 1].id))}
+              type="button"
+            >
+              <ChevronRight />
+            </button>
+          </div>
 
-        {layoutMode !== 'single' && (
-          <button
-            className="ghost-btn"
-            onClick={() => dispatch(clearGrid())}
-            title="Limpiar grid"
-            style={{ fontSize: '0.8em', padding: '4px 12px' }}
-          >
-            Limpiar
-          </button>
-        )}
-      </div>
+        </>
+      )}
 
       {renderContent()}
 
-      {/* Drop overlay for single layout */}
-      {showDropOverlay && layoutMode === 'single' && (
+      {/* Drop overlay for single layout (desktop only) */}
+      {!isMobile && showDropOverlay && filledGridCount === 0 && (
         <div className="drop-overlay" onDragOver={handleDragOverHotspot} onDrop={handleDragEnd}>
           {['Izquierda', 'Derecha', 'Abajo', 'Arriba'].map((label, idx) => (
             <div

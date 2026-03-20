@@ -84,6 +84,7 @@ let heartbeatInterval: NodeJS.Timeout | null = null;
 function connect() {
   socket = io(NEXUS_URL, {
     reconnection: false,
+    transports: ['websocket'],
     auth: { type: 'worker', apiKey: API_KEY, workerName: WORKER_NAME }
   });
 

@@ -13,9 +13,38 @@ import { PaymentService } from './services/payment.service';
 const PORT = process.env.PORT || 3002;
 const BILLING_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+interface DevWorkerSpec {
+    name: string;
+    apiKey: string;
+}
+
+const parseDevWorkerSpecs = (): DevWorkerSpec[] => {
+    const specsRaw = process.env.DEV_WORKER_SPECS || '';
+    const specs = specsRaw
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => {
+            const [name, apiKey] = entry.split(':').map((part) => part?.trim());
+            if (!name || !apiKey) return null;
+            return { name, apiKey };
+        })
+        .filter((spec): spec is DevWorkerSpec => Boolean(spec));
+
+    if (specs.length > 0) {
+        return specs;
+    }
+
+    const devWorkerToken = process.env.WORKER_TOKEN;
+    return devWorkerToken
+        ? [{ name: 'Docker-Dev-Worker-01', apiKey: devWorkerToken }]
+        : [];
+};
+
 const startServer = async () => {
     console.log('[Nexus] Initializing database...');
     await initDatabase();
+    await WorkerModel.markAllOffline();
 
     const adminPassword = process.env.ADMIN_PASSWORD;
     let adminId: number | undefined;
@@ -31,12 +60,20 @@ const startServer = async () => {
         }
     }
 
-    const devWorkerToken = process.env.WORKER_TOKEN;
-    if (devWorkerToken && adminId) {
-        const existingWorker = await WorkerModel.findByApiKey(devWorkerToken);
-        if (!existingWorker) {
-            console.log('[Nexus] Creating default dev worker from WORKER_TOKEN...');
-            await WorkerModel.create(adminId, 'Docker-Dev-Worker', undefined, devWorkerToken);
+    if (adminId) {
+        const devWorkers = parseDevWorkerSpecs();
+        for (const workerSpec of devWorkers) {
+            const existingWorker = await WorkerModel.findByApiKey(workerSpec.apiKey);
+            if (!existingWorker) {
+                console.log(`[Nexus] Creating dev worker ${workerSpec.name}...`);
+                await WorkerModel.create(adminId, workerSpec.name, undefined, workerSpec.apiKey);
+                continue;
+            }
+
+            if (existingWorker.name !== workerSpec.name) {
+                console.log(`[Nexus] Updating dev worker name ${existingWorker.name} -> ${workerSpec.name}`);
+                await WorkerModel.updateName(existingWorker.id, workerSpec.name);
+            }
         }
     }
 

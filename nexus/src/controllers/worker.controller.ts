@@ -10,7 +10,10 @@ export class WorkerController {
   static async list(req: Request, res: Response) {
     if (!req.user) { res.status(401).send(); return; }
     const workers = await WorkerModel.getAccessibleWorkers(req.user.userId);
-    res.json(workers);
+    res.json(workers.map((worker) => ({
+      ...worker,
+      status: connectedWorkers.has(worker.id) ? 'online' : 'offline',
+    })));
   }
 
   static async join(req: Request, res: Response) {

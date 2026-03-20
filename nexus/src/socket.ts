@@ -17,6 +17,13 @@ interface SocketData {
 
 export const workers: Map<string, Worker & { socketId: string }> = new Map();
 
+const applyRuntimeWorkerStatus = <T extends Worker>(workerList: T[]): Array<T & { status: 'online' | 'offline' }> => {
+  return workerList.map((worker) => ({
+    ...worker,
+    status: workers.has(worker.id) ? 'online' : 'offline',
+  }));
+};
+
 /**
  * Represents an active terminal session.
  */
@@ -102,7 +109,7 @@ export const initSocket = (httpServer: any) => {
     const socketData = socket.data as SocketData;
     if (socketData.role === 'client' && socketData.user) {
       const list = await WorkerModel.getAccessibleWorkers(socketData.user.userId);
-      emitWorkerList(socket, list);
+      emitWorkerList(socket, applyRuntimeWorkerStatus(list));
     }
   };
 

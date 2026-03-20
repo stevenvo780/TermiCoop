@@ -124,6 +124,26 @@
   color: #e7e7e7;
 }
 
+.session-chip.drop-before::before,
+.session-chip.drop-after::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  border-radius: 999px;
+  background: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+}
+
+.session-chip.drop-before::before {
+  left: -5px;
+}
+
+.session-chip.drop-after::after {
+  right: -5px;
+}
+
 .session-chip-main {
   background: transparent;
   border: none;
@@ -542,4 +562,113 @@
 .user-menu-item.logout:hover {
   background: rgba(239, 68, 68, 0.15);
   color: #fca5a5;
+}
+
+/* ===== Mobile TopBar ===== */
+@media (max-width: 1100px) {
+  .topbar {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .brand-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .topbar-sessions {
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .session-chip {
+    padding: 3px 4px 3px 8px;
+    font-size: 0.7rem;
+  }
+
+  .session-chip-main {
+    font-size: 0.7rem;
+    max-width: 100px;
+  }
+
+  .session-chip-menu-btn {
+    width: 20px;
+    height: 20px;
+  }
+
+  .session-chip-menu-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .topbar-right {
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .icon-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .topbar-stats {
+    display: none;
+  }
+
+  .user-menu-dropdown {
+    right: -4px;
+    min-width: 180px;
+    font-size: 0.85rem;
+  }
+
+  .session-chip-menu {
+    min-width: 160px;
+  }
+
+  /* === Mobile unified menu === */
+  .mobile-menu-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+  }
+
+  .mobile-menu-btn.active {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.4);
+    color: #e7e7e7;
+  }
+
+  .mobile-unified-menu {
+    position: fixed;
+    top: 48px;
+    right: 8px;
+    min-width: 220px;
+  }
+
+  .mobile-menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 4px 8px;
+  }
+
+  /* Hide desktop-only elements on mobile */
+  .user-menu-container,
+  .settings-menu-container {
+    display: none;
+  }
+}
+
+/* Mobile menu backdrop - rendered via portal at body level */
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+  background: transparent;
 }
