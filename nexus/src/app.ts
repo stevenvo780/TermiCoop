@@ -270,24 +270,9 @@ app.get('/api/downloads/latest/worker-linux.:ext', (req, res) => {
   res.download(file.path, filename);
 });
 
-// Serve client static files in production
-const clientPaths = [
-  path.resolve(process.cwd(), 'client/dist'),
-  path.resolve(process.cwd(), '../client/dist'),
-  path.resolve(process.cwd(), 'public'),
-  '/usr/share/ultimate-terminal/public',
-  path.resolve(__dirname, '../public'),
-];
-const clientDistPath = clientPaths.find(p => existsSync(p));
-if (clientDistPath) {
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-      return next();
-    }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
-  });
-  console.log(`Serving client from ${clientDistPath}`);
-}
+// Health / root endpoint (client is served separately via Vercel)
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'ultimate-terminal-nexus' });
+});
 
 export default app;
