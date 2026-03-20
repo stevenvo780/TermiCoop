@@ -106,6 +106,7 @@ function AppContent() {
   const terminalInstancesRef = useRef<Map<string, TerminalInstance>>(new Map());
   const pendingSessionIdsRef = useRef<Set<string>>(new Set());
   const joinedSessionIdsRef = useRef<Set<string>>(new Set());
+  const closedSessionIdsRef = useRef<Set<string>>(new Set());
   const sessionOutputRef = useRef<Record<string, string>>({});
   const sessionsRef = useRef<StoredSession[]>([]);
   const outputBufferRef = useRef<Record<string, string>>({});
@@ -220,6 +221,7 @@ function AppContent() {
     terminalInstancesRef.current.clear();
     pendingSessionIdsRef.current.clear();
     joinedSessionIdsRef.current.clear();
+    closedSessionIdsRef.current.clear();
     outputBufferRef.current = {};
     terminalWriteBufferRef.current = {};
     if (outputFlushTimerRef.current !== null) {
@@ -364,6 +366,10 @@ function AppContent() {
 
   // Close session
   const handleCloseSession = useCallback((sessionId: string) => {
+    // Mark as recently closed to prevent auto-join race condition
+    closedSessionIdsRef.current.add(sessionId);
+    setTimeout(() => closedSessionIdsRef.current.delete(sessionId), 15000);
+
     const instance = terminalInstancesRef.current.get(sessionId);
     if (instance) {
       window.removeEventListener('resize', instance.resizeHandler);
@@ -373,6 +379,7 @@ function AppContent() {
       bumpInstancesVersion();
     }
     pendingSessionIdsRef.current.delete(sessionId);
+    joinedSessionIdsRef.current.delete(sessionId);
     delete outputBufferRef.current[sessionId];
     delete terminalWriteBufferRef.current[sessionId];
     socketRef.current?.emit('close-session', { sessionId });
@@ -620,6 +627,9 @@ function AppContent() {
 
         socket.on('session-closed', (data: { sessionId: string }) => {
           // A session was closed (possibly from another device)
+          closedSessionIdsRef.current.add(data.sessionId);
+          setTimeout(() => closedSessionIdsRef.current.delete(data.sessionId), 15000);
+
           const instance = terminalInstancesRef.current.get(data.sessionId);
           if (instance) {
             window.removeEventListener('resize', instance.resizeHandler);
@@ -646,6 +656,7 @@ function AppContent() {
   useEffect(() => {
     if (!token) {
       joinedSessionIdsRef.current.clear();
+      closedSessionIdsRef.current.clear();
     }
   }, [token]);
 
@@ -766,6 +777,7 @@ function AppContent() {
       if (serverSession.creatorUserId !== currentUser.userId) return;
       if (localIds.has(serverSession.id)) return;
       if (pendingSessionIdsRef.current.has(serverSession.id)) return;
+      if (closedSessionIdsRef.current.has(serverSession.id)) return;
 
       const worker = workers.find(w => w.id === serverSession.workerId);
       if (!worker || worker.status === 'offline') return;

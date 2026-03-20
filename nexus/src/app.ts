@@ -29,6 +29,22 @@ app.use('/api/auth', authRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/payments', paymentRoutes);
 
+// --- Admin bootstrap endpoint (protected by ADMIN_PASSWORD) ---
+app.post('/api/admin/upgrade-plan', async (req, res) => {
+  const { adminPassword, username, plan, makeAdmin } = req.body;
+  const expected = process.env.ADMIN_PASSWORD;
+  if (!expected || adminPassword !== expected) {
+    res.status(403).json({ error: 'Forbidden' }); return;
+  }
+  try {
+    const dbMod = (await import('./config/database')).default;
+    await dbMod.run("UPDATE users SET plan = ?, is_admin = ? WHERE username = ?",
+      [plan || 'enterprise', makeAdmin ? 1 : 0, username]);
+    const user = await dbMod.get<any>("SELECT id, username, is_admin, plan FROM users WHERE username = ?", [username]);
+    res.json({ success: true, user });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 const downloadRoots = [
   path.resolve(process.cwd(), 'dist/packages'),
   path.resolve(process.cwd(), '../dist/packages'),
