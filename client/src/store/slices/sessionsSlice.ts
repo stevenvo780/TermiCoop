@@ -103,28 +103,28 @@ const sessionsSlice = createSlice({
     },
     moveSession: (state, action: PayloadAction<{ sessionId: string; targetSessionId?: string; position?: 'before' | 'after' | 'end' }>) => {
       const { sessionId, targetSessionId, position = 'before' } = action.payload;
-      const sourceIndex = state.sessions.findIndex((session) => session.id === sessionId);
+      const sourceIndex = state.sessions.findIndex((s) => s.id === sessionId);
       if (sourceIndex < 0) return;
 
-      const nextSessions = [...state.sessions];
-      const [movedSession] = nextSessions.splice(sourceIndex, 1);
-      if (!movedSession) return;
-
+      // Move to end
       if (!targetSessionId || position === 'end') {
+        const nextSessions = [...state.sessions];
+        const [movedSession] = nextSessions.splice(sourceIndex, 1);
+        if (!movedSession) return;
         nextSessions.push(movedSession);
         state.sessions = nextSessions;
         localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
         return;
       }
 
-      const targetIndex = nextSessions.findIndex((session) => session.id === targetSessionId);
-      if (targetIndex < 0) {
-        nextSessions.push(movedSession);
-      } else {
-        const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
-        nextSessions.splice(insertIndex, 0, movedSession);
-      }
+      // Swap positions
+      const targetIndex = state.sessions.findIndex((s) => s.id === targetSessionId);
+      if (targetIndex < 0 || sourceIndex === targetIndex) return;
 
+      const nextSessions = [...state.sessions];
+      const temp = nextSessions[sourceIndex];
+      nextSessions[sourceIndex] = nextSessions[targetIndex];
+      nextSessions[targetIndex] = temp;
       state.sessions = nextSessions;
       localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(state.sessions));
     },

@@ -70,7 +70,7 @@ export function TopBar({
   const sessionsStripRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1100);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [tabDropTarget, setTabDropTarget] = useState<{ sessionId: string; position: 'before' | 'after' } | null>(null);
+  const [tabDropTarget, setTabDropTarget] = useState<string | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 1100);
@@ -198,17 +198,14 @@ export function TopBar({
     setSessionMenuId(null);
   };
 
-  const resolveDropPosition = (event: React.DragEvent<HTMLDivElement>): 'before' | 'after' => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const midpoint = rect.left + rect.width / 2;
-    return event.clientX >= midpoint ? 'after' : 'before';
-  };
-
   const handleTabDragOver = (targetSessionId: string) => (event: React.DragEvent<HTMLDivElement>) => {
-    if (!draggingSessionId || draggingSessionId === targetSessionId) return;
+    // Allow drop if we're dragging a session (check dataTransfer types as fallback for Redux timing)
+    const isSessionDrag = draggingSessionId || event.dataTransfer.types.includes('text/plain');
+    if (!isSessionDrag) return;
+    if (draggingSessionId === targetSessionId) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    setTabDropTarget({ sessionId: targetSessionId, position: resolveDropPosition(event) });
+    setTabDropTarget(targetSessionId);
   };
 
   const handleTabDrop = (targetSessionId: string) => (event: React.DragEvent<HTMLDivElement>) => {
@@ -220,8 +217,7 @@ export function TopBar({
       return;
     }
 
-    const position = resolveDropPosition(event);
-    dispatch(moveSession({ sessionId, targetSessionId, position }));
+    dispatch(moveSession({ sessionId, targetSessionId }));
     setTabDropTarget(null);
   };
 
@@ -240,6 +236,11 @@ export function TopBar({
     setTabDropTarget(null);
   };
 
+  const handleTabDragEnd = () => {
+    setTabDropTarget(null);
+    onDragEnd();
+  };
+
   return (
     <div className="topbar">
       <div className="brand">
@@ -252,7 +253,7 @@ export function TopBar({
         className="topbar-sessions"
         ref={sessionsStripRef}
         onDragOver={(event) => {
-          if (!draggingSessionId) return;
+          if (!draggingSessionId && !event.dataTransfer.types.includes('text/plain')) return;
           event.preventDefault();
         }}
         onDrop={handleSessionsStripDrop}
@@ -260,7 +261,7 @@ export function TopBar({
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`session-chip ${activeSessionId === session.id ? 'active' : ''} ${tabDropTarget?.sessionId === session.id ? `drop-${tabDropTarget.position}` : ''}`}
+            className={`session-chip ${activeSessionId === session.id ? 'active' : ''} ${tabDropTarget === session.id ? 'drop-target' : ''}`}
             draggable
             onDragStart={(event) => {
               event.dataTransfer.setData('text/plain', session.id);
@@ -272,10 +273,10 @@ export function TopBar({
             onDrop={handleTabDrop(session.id)}
             onDragLeave={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                setTabDropTarget((current) => current?.sessionId === session.id ? null : current);
+                setTabDropTarget((current) => current === session.id ? null : current);
               }
             }}
-            onDragEnd={onDragEnd}
+            onDragEnd={handleTabDragEnd}
           >
             <button
               className="session-chip-main"
