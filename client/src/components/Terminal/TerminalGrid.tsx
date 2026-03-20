@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   setActiveSession,
   assignGridSlot,
+  swapGridSlots,
   setShowDropOverlay,
   setDraggingSessionId,
   setGridSessionIds,
@@ -151,7 +152,13 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
     event.dataTransfer.dropEffect = 'move';
     const sessionId = event.dataTransfer.getData('text/plain');
     if (sessionId) {
-      dispatch(assignGridSlot({ slotIndex, sessionId }));
+      // If the target slot already has a session, swap; otherwise assign
+      const targetSessionId = gridSessionIds[slotIndex];
+      if (targetSessionId && targetSessionId !== sessionId) {
+        dispatch(swapGridSlots({ slotIndex, sessionId }));
+      } else {
+        dispatch(assignGridSlot({ slotIndex, sessionId }));
+      }
     }
     dispatch(setDraggingSessionId(null));
     dispatch(setShowDropOverlay(false));
@@ -314,8 +321,7 @@ export function TerminalGrid({ instancesRef, containerRef, instancesVersion }: T
           isResizable={false}
           isDraggable={true}
           autoSize={false}
-          compactType={null}
-          preventCollision
+          compactType="horizontal"
           onLayoutChange={handleGridLayoutChange}
           draggableHandle=".grid-drag-handle"
         >

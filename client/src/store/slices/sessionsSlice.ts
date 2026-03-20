@@ -161,6 +161,27 @@ const sessionsSlice = createSlice({
       localStorage.setItem(GRID_SLOTS_KEY, JSON.stringify(state.gridSessionIds));
       localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
     },
+    swapGridSlots: (state, action: PayloadAction<{ slotIndex: number; sessionId: string }>) => {
+      const { slotIndex, sessionId } = action.payload;
+      // Find where the dragged session currently is in the grid
+      const sourceIndex = state.gridSessionIds.findIndex((id) => id === sessionId);
+      if (sourceIndex >= 0 && slotIndex < state.gridSessionIds.length) {
+        // Both are in grid → swap them
+        const temp = state.gridSessionIds[slotIndex];
+        state.gridSessionIds[slotIndex] = sessionId;
+        state.gridSessionIds[sourceIndex] = temp;
+      } else if (sourceIndex < 0 && slotIndex < state.gridSessionIds.length) {
+        // Dragged session is NOT in grid, target slot IS occupied → replace
+        state.gridSessionIds[slotIndex] = sessionId;
+      } else {
+        // Fallback: just add at the end
+        state.gridSessionIds = state.gridSessionIds.filter((id) => id && id !== sessionId);
+        state.gridSessionIds.push(sessionId);
+      }
+      state.activeSessionId = sessionId;
+      localStorage.setItem(GRID_SLOTS_KEY, JSON.stringify(state.gridSessionIds));
+      localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
+    },
     updateSessionOutput: (state, action: PayloadAction<{ sessionId: string; output: string }>) => {
       const MAX_OUTPUT_CHARS = 20000;
       const current = state.sessionOutput[action.payload.sessionId] || '';
@@ -211,6 +232,7 @@ export const {
   setOfflineSessionIds,
   setGridSessionIds,
   assignGridSlot,
+  swapGridSlots,
   updateSessionOutput,
   setSessionOutput,
   setIsRestored,
