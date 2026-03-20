@@ -10,9 +10,19 @@ const app = express();
 
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 const allowedOrigins = clientOrigin.split(',').map((o) => o.trim());
-const corsOrigin = allowedOrigins.includes('*') ? '*' : allowedOrigins;
 
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);                     // same-origin / curl
+    if (allowedOrigins.includes('*')) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // Accept any Vercel preview deploy for this project
+    if (/^https:\/\/.*stevenvo780.*\.vercel\.app$/.test(origin)) return cb(null, true);
+    if (/^https:\/\/ultimate-terminal.*\.vercel\.app$/.test(origin)) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);

@@ -56,3 +56,4 @@ payload.tar.gz
 credenciales-prod.md
 deploy-prod/*
 docker
+.vercel
